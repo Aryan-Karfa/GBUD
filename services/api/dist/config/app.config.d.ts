@@ -4,6 +4,12 @@ export declare const appConfig: {
     env: "development" | "production" | "test";
     port: number;
     apiVersion: string;
+    jwt: {
+        accessSecret: string;
+        refreshSecret: string;
+        accessExpiresIn: string;
+        refreshExpiresIn: string;
+    };
     cors: {
         origin: boolean | string[];
         credentials: boolean;
