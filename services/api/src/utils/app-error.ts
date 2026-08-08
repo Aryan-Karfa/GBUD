@@ -2,7 +2,9 @@ import { APIErrorBody } from '@gbud/types';
 
 export type ErrorCode =
   | 'BAD_REQUEST'
+  | 'UNAUTHORIZED'
   | 'NOT_FOUND'
+  | 'CONFLICT'
   | 'VALIDATION_ERROR'
   | 'INTERNAL_SERVER_ERROR';
 
@@ -31,8 +33,16 @@ export class AppError extends Error {
     return new AppError(message, 400, 'BAD_REQUEST', details);
   }
 
+  public static unauthorized(message: string = 'Authentication failed'): AppError {
+    return new AppError(message, 401, 'UNAUTHORIZED');
+  }
+
   public static notFound(message: string = 'Resource not found'): AppError {
     return new AppError(message, 404, 'NOT_FOUND');
+  }
+
+  public static conflict(message: string = 'Conflict', details: APIErrorBody['details'] = null): AppError {
+    return new AppError(message, 409, 'CONFLICT', details);
   }
 
   public static validationError(message: string = 'Validation failed', details: APIErrorBody['details'] = null): AppError {

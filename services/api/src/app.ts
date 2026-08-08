@@ -1,6 +1,7 @@
 import express, { Express } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { appConfig } from './config';
 import apiRouter from './routes';
 import { requestIdMiddleware } from './middleware/request-id.middleware';
@@ -14,6 +15,7 @@ export function createApp(): Express {
   // Security & Core Middlewares
   app.use(helmet());
   app.use(cors(appConfig.cors));
+  app.use(cookieParser());
   app.use(express.json({ limit: appConfig.bodyLimit }));
 
   // Custom Request Correlation & Logging

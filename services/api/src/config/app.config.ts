@@ -7,6 +7,12 @@ export const appConfig = {
   env: env.nodeEnv,
   port: env.port,
   apiVersion: env.apiVersion,
+  jwt: {
+    accessSecret: env.jwtAccessSecret,
+    refreshSecret: env.jwtRefreshSecret,
+    accessExpiresIn: env.jwtAccessExpiresIn,
+    refreshExpiresIn: env.jwtRefreshExpiresIn,
+  },
   cors: {
     origin: env.corsOrigin ? env.corsOrigin.split(',').map((o) => o.trim()) : env.nodeEnv === 'production' ? false : ['http://localhost:3000', 'http://localhost:5173'],
     credentials: true,
