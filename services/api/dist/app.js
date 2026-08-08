@@ -7,6 +7,7 @@ exports.createApp = createApp;
 const express_1 = __importDefault(require("express"));
 const helmet_1 = __importDefault(require("helmet"));
 const cors_1 = __importDefault(require("cors"));
+const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const config_1 = require("./config");
 const routes_1 = __importDefault(require("./routes"));
 const request_id_middleware_1 = require("./middleware/request-id.middleware");
@@ -18,6 +19,7 @@ function createApp() {
     // Security & Core Middlewares
     app.use((0, helmet_1.default)());
     app.use((0, cors_1.default)(config_1.appConfig.cors));
+    app.use((0, cookie_parser_1.default)());
     app.use(express_1.default.json({ limit: config_1.appConfig.bodyLimit }));
     // Custom Request Correlation & Logging
     app.use(request_id_middleware_1.requestIdMiddleware);

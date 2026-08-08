@@ -17,8 +17,14 @@ class AppError extends Error {
     static badRequest(message, details = null) {
         return new AppError(message, 400, 'BAD_REQUEST', details);
     }
+    static unauthorized(message = 'Authentication failed') {
+        return new AppError(message, 401, 'UNAUTHORIZED');
+    }
     static notFound(message = 'Resource not found') {
         return new AppError(message, 404, 'NOT_FOUND');
+    }
+    static conflict(message = 'Conflict', details = null) {
+        return new AppError(message, 409, 'CONFLICT', details);
     }
     static validationError(message = 'Validation failed', details = null) {
         return new AppError(message, 422, 'VALIDATION_ERROR', details);
