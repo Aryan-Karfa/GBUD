@@ -12,7 +12,9 @@ GBUD is a production-oriented, cross-platform fitness ecosystem designed to supp
 
 - **Phase 0 — Project Foundation**: `Completed`
 - **Phase 1 — Backend Foundation**: `Completed`
-- **Phase 2 — Database & Prisma**: `Not Started`
+- **Phase 2 — Database & Prisma**: `Completed`
+- **Phase 3 — Authentication & Identity**: `Completed`
+- **Phase 4 — Core TRAIN Domain**: `Not Started`
 
 ---
 
@@ -22,36 +24,92 @@ GBUD is a production-oriented, cross-platform fitness ecosystem designed to supp
 - **Package Manager / Workspace**: `pnpm` Monorepo
 - **Mobile**: React Native, Expo, TypeScript
 - **Web**: React, Vite, TypeScript
-- **Backend API**: Node.js, Express, TypeScript, Helmet, Zod, Vitest, Supertest
-- **Database (Target)**: PostgreSQL, Prisma ORM
+- **Backend API**: Node.js, Express, TypeScript, Prisma ORM, Bcrypt, JWT (`jsonwebtoken`), Cookie-Parser, Helmet, Zod, Vitest, Supertest
+- **Database**: PostgreSQL, Prisma ORM
 - **State & Data**: Zustand, TanStack Query
-- **Authentication (Target)**: JWT (Access & Refresh tokens)
+- **Authentication**: JWT Access Tokens + Database Refresh Token Sessions with Atomic Rotation
 
 ---
 
-## Backend Request Lifecycle (Phase 1 Implemented)
+## Authentication Architecture (Phase 3 Implemented)
 
+### Registration & Login Lifecycle
 ```text
-HTTP Request
+Client Request
      ↓
-Global Middleware (Helmet, CORS, Body Limits)
+Zod Validation (registerSchema / loginSchema)
      ↓
-Request ID Middleware (X-Request-ID Header Generation / Propagation)
+Auth Controller (Cookie Detection / Transport Handler)
      ↓
-Logger Middleware (Structured Request Logging)
+Auth Service
+     ├── Password Hashing / Verification (bcrypt)
+     ├── User Status Check (ACTIVE enforcement)
+     ├── User Repository (Prisma)
+     └── Session Repository (Atomic Prisma Transaction)
      ↓
-API V1 Router (/api/v1)
-     ↓
-Request Validation Middleware (Zod Schemas → 422 VALIDATION_ERROR)
-     ↓
-Controller
-     ↓
-Service
-     ↓
-Unmapped Route Handler (404 NOT_FOUND)
-     ↓
-Centralized Error Handler (AppError Formatting & Production Error Sanitization)
+Tokens & Response
+     ├── Access Token (JWT 15m expiration)
+     ├── Refresh Token (HttpOnly Cookie for Web / JSON for Mobile)
+     └── Safe User Profile (passwordHash & tokenHash NEVER exposed)
 ```
+
+### Protected Request Lifecycle
+```text
+Client Request (Header: Authorization: Bearer <access_token>)
+     ↓
+Auth Middleware (`authenticate`)
+     ├── Extract & Verify JWT Access Token
+     ├── Resolve User via UserRepository
+     └── Attach `req.user`
+     ↓
+Protected Controller (`GET /api/v1/auth/me`)
+```
+
+### Atomic Refresh Token Rotation
+```text
+Refresh Request
+     ↓
+Hash Refresh Token (SHA-256)
+     ↓
+Prisma Transaction (`rotateSessionAtomic`)
+     ├── Verify Active Session & Expiration
+     ├── Revoke Old Session
+     └── Issue New Session & Rotated Refresh Token
+```
+
+---
+
+## Implemented API Endpoints
+
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/health` | Public | System runtime status |
+| `POST` | `/api/v1/auth/register` | Public | Register new user account |
+| `POST` | `/api/v1/auth/login` | Public | Authenticate user & issue tokens |
+| `POST` | `/api/v1/auth/refresh` | Public | Rotate refresh token & issue new access token |
+| `POST` | `/api/v1/auth/logout` | Public | Revoke session server-side & clear cookies |
+| `GET` | `/api/v1/auth/me` | **Bearer** | Retrieve authenticated user profile |
+
+---
+
+## Database Architecture (Prisma)
+
+### `User` Model (`users`)
+- `id` (UUID Primary Key)
+- `email` (Unique String, normalized lowercase)
+- `username` (Unique String)
+- `passwordHash` (String, bcrypt salt factor 10)
+- `status` (`ACTIVE` | `SUSPENDED` Enum)
+- `createdAt`, `updatedAt` (Timestamps)
+- `sessions` (Relation `Session[]` with `onDelete: Cascade`)
+
+### `Session` Model (`sessions`)
+- `id` (UUID Primary Key)
+- `userId` (Foreign Key -> `User.id`)
+- `tokenHash` (Unique String, SHA-256 hash of refresh token)
+- `expiresAt` (Timestamp)
+- `revokedAt` (Optional Timestamp)
+- `createdAt`, `updatedAt` (Timestamps)
 
 ---
 
@@ -65,15 +123,19 @@ gbud/
 │
 ├── services/
 │   └── api/                # Express + Node.js + TypeScript REST API
+│       ├── prisma/         # Prisma schema and database configuration
+│       │   └── schema.prisma
 │       └── src/
-│           ├── config/     # Typed environment validation & app configuration
-│           ├── controllers/# Thin HTTP Controllers
-│           ├── middleware/ # Request ID, Logger, Validation, 404, Error handling
-│           ├── repositories/# Repository directory placeholder (unconnected in Phase 1)
+│           ├── config/     # Typed environment, app config, & Prisma singleton
+│           ├── controllers/# Thin HTTP Controllers (auth.controller.ts, health.controller.ts)
+│           ├── middleware/ # Request ID, Logger, Validation, Auth, 404, Error handling
+│           ├── modules/    # Domain modules (auth/ module with service, controller, routes)
+│           ├── repositories/# Data access repositories (user.repository.ts, session.repository.ts)
 │           ├── routes/     # Route registry and endpoint routers
 │           ├── services/   # Business logic services
-│           ├── utils/      # Custom AppError & backend utilities
-│           ├── __tests__/  # Vitest + Supertest automated testing suite
+│           ├── types/      # Express Request type extensions (express.d.ts)
+│           ├── utils/      # AppError, bcrypt password, & JWT security utilities
+│           ├── __tests__/  # Vitest + Supertest testing suite (auth, health, 404, error, validation)
 │           ├── app.ts      # Express application setup
 │           └── server.ts   # Server startup entry point & graceful shutdown
 │
@@ -83,7 +145,7 @@ gbud/
 │   ├── types/              # Shared TypeScript definitions & API contracts (@gbud/types)
 │   ├── ui/                 # Shared UI component library foundation (@gbud/ui)
 │   ├── utils/              # Framework-independent utility functions (@gbud/utils)
-│   └── validation/         # Shared Zod validation schema contracts (@gbud/validation)
+│   └── validation/         # Shared Zod validation schemas (@gbud/validation)
 │
 ├── docs/                   # Product & Architecture specifications
 ├── .env.example            # Environment variables template
@@ -122,22 +184,27 @@ gbud/
    cp .env.example .env
    ```
 
-4. **Verify TypeScript compilation**
+4. **Generate Prisma Client**
+   ```bash
+   pnpm --filter @gbud/api run prisma:generate
+   ```
+
+5. **Verify TypeScript compilation**
    ```bash
    pnpm typecheck
    ```
 
-5. **Run automated testing suite**
+6. **Run automated testing suite**
    ```bash
    pnpm test
    ```
 
-6. **Build all workspace packages and apps**
+7. **Build all workspace packages and apps**
    ```bash
    pnpm build
    ```
 
-7. **Start development services**
+8. **Start development services**
    - Start Backend API:
      ```bash
      pnpm dev:api
@@ -154,37 +221,12 @@ gbud/
 
 ---
 
-## Functionality Implemented
-
-### Phase 0 — Project Foundation
-- Monorepo workspace established using `pnpm`.
-- Enforced `"engines": { "node": ">=22" }` across the monorepo.
-- Mobile, Web, and API workspace foundations initialized.
-- Shared packages (`@gbud/config`, `@gbud/constants`, `@gbud/types`, `@gbud/ui`, `@gbud/utils`, `@gbud/validation`) configured.
-
-### Phase 1 — Backend Foundation
-- **Typed Environment Validation**: Typed environment parser (`config/env.ts`) validating `NODE_ENV`, `API_PORT`, and `CORS_ORIGIN`.
-- **Centralized Application Configuration**: `appConfig` export (`config/app.config.ts`) preventing scattered `process.env` access.
-- **Standardized API Error Contract**: Standardized `APIErrorResponse` payload with predictable error codes (`BAD_REQUEST`, `NOT_FOUND`, `VALIDATION_ERROR`, `INTERNAL_SERVER_ERROR`).
-- **Custom AppError**: Operational error helper class (`utils/app-error.ts`).
-- **Request ID Middleware**: Correlation middleware (`middleware/request-id.middleware.ts`) generating and propagating `X-Request-ID` headers.
-- **Request Logging Middleware**: Structured request logger (`middleware/logger.middleware.ts`).
-- **404 Unmapped Route Handler**: Returns structured JSON 404 response (`middleware/not-found.middleware.ts`).
-- **Centralized Error Handler**: Error formatting middleware with production error sanitization concealing stack traces (`middleware/error.middleware.ts`).
-- **Request Validation Middleware**: Generic Zod validator returning 422 `VALIDATION_ERROR` (`middleware/validation.middleware.ts`).
-- **Central Route Registry**: Modular router mounting (`routes/index.ts`).
-- **Graceful Shutdown**: Signal handling (`SIGINT`/`SIGTERM`) in `server.ts`.
-- **Automated Testing Suite**: Vitest + Supertest suite testing health check, 404 handler, validation middleware (422), and production error sanitization.
-
----
-
 ## Project Roadmap
 
 - **Phase 0 — Project Foundation** *(Completed)*
 - **Phase 1 — Backend Foundation** *(Completed)*
-- **Phase 2 — Database & Prisma** *(Upcoming: PostgreSQL database setup, Prisma ORM integration, schema migrations, repository implementations)*
-- **Phase 3 — Core Data Models & Validation**
-- **Phase 4 — Authentication & User Management**
-- **Phase 5 — TRAIN Pillar**
-- **Phase 6 — FUEL Pillar**
-- **Phase 7 — PROGRESS Pillar**
+- **Phase 2 — Database & Prisma** *(Completed)*
+- **Phase 3 — Authentication & Identity** *(Completed)*
+- **Phase 4 — Core TRAIN Domain** *(Upcoming: Workout models, Exercise library, Sets/Reps/Weight tracking, Personal Records, Workout Execution)*
+- **Phase 5 — FUEL Domain**
+- **Phase 6 — PROGRESS Domain**
