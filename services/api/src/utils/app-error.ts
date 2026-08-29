@@ -3,6 +3,10 @@ import { APIErrorBody } from '@gbud/types';
 export type ErrorCode =
   | 'BAD_REQUEST'
   | 'UNAUTHORIZED'
+<<<<<<< HEAD
+=======
+  | 'FORBIDDEN'
+>>>>>>> b83a35e (Completed Phase 9)
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'VALIDATION_ERROR'
@@ -37,6 +41,13 @@ export class AppError extends Error {
     return new AppError(message, 401, 'UNAUTHORIZED');
   }
 
+<<<<<<< HEAD
+=======
+  public static forbidden(message: string = 'Forbidden'): AppError {
+    return new AppError(message, 403, 'FORBIDDEN');
+  }
+
+>>>>>>> b83a35e (Completed Phase 9)
   public static notFound(message: string = 'Resource not found'): AppError {
     return new AppError(message, 404, 'NOT_FOUND');
   }

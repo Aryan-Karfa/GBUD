@@ -13,9 +13,20 @@
       "supportsTablet": true
     },
     "android": {
+<<<<<<< HEAD
       "adaptiveIcon": {
         "backgroundColor": "#09090b"
       }
+=======
+      "package": "com.gbud.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#09090b"
+      }
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#09090b",
+      "barStyle": "light-content"
+>>>>>>> b83a35e (Completed Phase 9)
     }
   }
 }

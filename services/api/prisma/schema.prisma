@@ -12,6 +12,7 @@ enum UserStatus {
   SUSPENDED
 }
 
+<<<<<<< HEAD
 model User {
   id           String     @id @default(uuid())
   email        String     @unique
@@ -21,6 +22,36 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   sessions     Session[]
+=======
+enum WorkoutSessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+  OTHER
+}
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  username         String            @unique
+  passwordHash     String
+  status           UserStatus        @default(ACTIVE)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  sessions         Session[]
+  workoutTemplates WorkoutTemplate[]
+  workoutSessions  WorkoutSession[]
+  customFoods      Food[]
+  meals            Meal[]
+  nutritionTargets NutritionTarget[]
+>>>>>>> b83a35e (Completed Phase 9)
 
   @@map("users")
 }
@@ -38,3 +69,191 @@ model Session {
 
   @@map("sessions")
 }
+<<<<<<< HEAD
+=======
+
+model Exercise {
+  id               String                    @id @default(uuid())
+  name             String                    @unique
+  description      String?
+  muscleGroup      String?
+  equipment        String?
+  movementPattern  String?
+  exerciseType     String?
+  instructions     String?
+  isActive         Boolean                   @default(true)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  templateItems    WorkoutTemplateExercise[]
+  sessionExercises WorkoutSessionExercise[]
+
+  @@map("exercises")
+}
+
+model WorkoutTemplate {
+  id                String                    @id @default(uuid())
+  userId            String
+  name              String
+  description       String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateExercises WorkoutTemplateExercise[]
+  workoutSessions   WorkoutSession[]
+
+  @@index([userId])
+  @@map("workout_templates")
+}
+
+model WorkoutTemplateExercise {
+  id                String          @id @default(uuid())
+  workoutTemplateId String
+  exerciseId        String
+  order             Int
+  notes             String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  workoutTemplate   WorkoutTemplate @relation(fields: [workoutTemplateId], references: [id], onDelete: Cascade)
+  exercise          Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+
+  @@unique([workoutTemplateId, exerciseId])
+  @@index([workoutTemplateId, order])
+  @@map("workout_template_exercises")
+}
+
+model WorkoutSession {
+  id                String                   @id @default(uuid())
+  userId            String
+  workoutTemplateId String?
+  status            WorkoutSessionStatus     @default(IN_PROGRESS)
+  startedAt         DateTime                 @default(now())
+  completedAt       DateTime?
+  abandonedAt       DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutTemplate   WorkoutTemplate?         @relation(fields: [workoutTemplateId], references: [id], onDelete: SetNull)
+  sessionExercises  WorkoutSessionExercise[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([userId, status])
+  @@index([userId, startedAt])
+  @@map("workout_sessions")
+}
+
+model WorkoutSessionExercise {
+  id               String         @id @default(uuid())
+  workoutSessionId String
+  exerciseId       String?
+  name             String
+  order            Int
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  workoutSession   WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+  exercise         Exercise?      @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
+  sets             WorkoutSet[]
+
+  @@index([workoutSessionId, order])
+  @@map("workout_session_exercises")
+}
+
+model WorkoutSet {
+  id                       String                 @id @default(uuid())
+  workoutSessionExerciseId String
+  setNumber                Int
+  reps                     Int?
+  weight                   Float?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  workoutSessionExercise   WorkoutSessionExercise @relation(fields: [workoutSessionExerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([workoutSessionExerciseId, setNumber])
+  @@map("workout_sets")
+}
+
+model Food {
+  id              String          @id @default(uuid())
+  name            String
+  description     String?
+  servingSize     Float
+  servingUnit     String
+  calories        Float
+  protein         Float
+  carbohydrates   Float
+  fat             Float
+  fiber           Float?
+  isActive        Boolean         @default(true)
+  ownerId         String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  owner           User?           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  mealFoodEntries MealFoodEntry[]
+
+  @@index([ownerId])
+  @@index([name])
+  @@map("foods")
+}
+
+model Meal {
+  id        String          @id @default(uuid())
+  userId    String
+  name      String
+  mealDate  DateTime        @db.Date
+  mealType  MealType?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries   MealFoodEntry[]
+
+  @@index([userId, mealDate])
+  @@index([userId])
+  @@map("meals")
+}
+
+model MealFoodEntry {
+  id                             String   @id @default(uuid())
+  mealId                         String
+  foodId                         String?
+  foodNameSnapshot               String
+  quantity                       Float
+  unit                           String
+  servingSizeSnapshot            Float
+  servingUnitSnapshot            String
+  caloriesPerServingSnapshot     Float
+  proteinPerServingSnapshot      Float
+  carbohydratesPerServingSnapshot Float
+  fatPerServingSnapshot          Float
+  fiberPerServingSnapshot        Float?
+  caloriesSnapshot               Float
+  proteinSnapshot                Float
+  carbohydratesSnapshot          Float
+  fatSnapshot                    Float
+  fiberSnapshot                  Float?
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+  meal                           Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  food                           Food?    @relation(fields: [foodId], references: [id], onDelete: SetNull)
+
+  @@index([mealId])
+  @@map("meal_food_entries")
+}
+
+model NutritionTarget {
+  id            String   @id @default(uuid())
+  userId        String
+  calories      Float
+  protein       Float
+  carbohydrates Float
+  fat           Float
+  effectiveFrom DateTime @db.Date
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, effectiveFrom])
+  @@index([userId, effectiveFrom])
+  @@map("nutrition_targets")
+}
+>>>>>>> b83a35e (Completed Phase 9)

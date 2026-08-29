@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+<<<<<<< HEAD
 import { AnyZodObject, ZodError } from 'zod';
 import { AppError } from '../utils/app-error';
 
@@ -6,6 +7,15 @@ export interface ValidationSchemas {
   body?: AnyZodObject;
   query?: AnyZodObject;
   params?: AnyZodObject;
+=======
+import { ZodSchema, ZodError } from 'zod';
+import { AppError } from '../utils/app-error';
+
+export interface ValidationSchemas {
+  body?: ZodSchema;
+  query?: ZodSchema;
+  params?: ZodSchema;
+>>>>>>> b83a35e (Completed Phase 9)
 }
 
 export function validateRequest(schemas: ValidationSchemas) {

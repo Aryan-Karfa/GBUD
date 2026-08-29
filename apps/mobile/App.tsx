@@ -1,4 +1,5 @@
 import React from 'react';
+<<<<<<< HEAD
 import { StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { APP_CONFIG } from '@gbud/config';
@@ -40,3 +41,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+=======
+import { StatusBar } from 'react-native';
+import { AppProviders } from './src/app/AppProviders';
+import { RootNavigator } from './src/navigation/RootNavigator';
+import { theme } from './src/theme/theme';
+
+export default function App() {
+  return (
+    <AppProviders>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={theme.colors.background.primary}
+        translucent={false}
+      />
+      <RootNavigator />
+    </AppProviders>
+  );
+}
+>>>>>>> b83a35e (Completed Phase 9)
