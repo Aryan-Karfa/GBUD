@@ -15,6 +15,8 @@ import {
   TrainRouteParams,
   FuelScreen,
   FuelRouteParams,
+  ProgressScreen,
+  ProgressRouteParams,
   NavigationContextType,
 } from './navigation.types';
 import { navigationManager } from './navigation.manager';
@@ -29,6 +31,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const [trainParams, setTrainParams] = useState<any>(() => navigationManager.getTrainParams());
   const [fuelScreen, setFuelScreen] = useState<FuelScreen>(() => navigationManager.getFuelScreen());
   const [fuelParams, setFuelParams] = useState<any>(() => navigationManager.getFuelParams());
+  const [progressScreen, setProgressScreen] = useState<ProgressScreen>(() => navigationManager.getProgressScreen());
+  const [progressParams, setProgressParams] = useState<any>(() => navigationManager.getProgressParams());
 
   // Sync auth status with navigation manager
   useEffect(() => {
@@ -44,6 +48,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       setTrainParams(navigationManager.getTrainParams());
       setFuelScreen(navigationManager.getFuelScreen());
       setFuelParams(navigationManager.getFuelParams());
+      setProgressScreen(navigationManager.getProgressScreen());
+      setProgressParams(navigationManager.getProgressParams());
     });
     return unsubscribe;
   }, []);
@@ -66,6 +72,13 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const navigateFuel = useCallback(
     <T extends FuelScreen>(screen: T, params?: FuelRouteParams[T]) => {
       navigationManager.navigateFuel(screen, params);
+    },
+    []
+  );
+
+  const navigateProgress = useCallback(
+    <T extends ProgressScreen>(screen: T, params?: ProgressRouteParams[T]) => {
+      navigationManager.navigateProgress(screen, params);
     },
     []
   );
@@ -105,10 +118,13 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         trainParams,
         fuelScreen,
         fuelParams,
+        progressScreen,
+        progressParams,
         navigateAuth,
         navigateTab,
         navigateTrain,
         navigateFuel,
+        navigateProgress,
         goBack,
         registerBackInterceptor,
       }}

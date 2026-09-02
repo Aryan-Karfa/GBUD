@@ -22,7 +22,7 @@ GBUD is a production-oriented, Android-first fitness ecosystem built around thre
 - **Phase 9 — Android Application Foundation**: `Completed`
 - **Phase 10 — TRAIN Android Experience**: `Completed`
 - **Phase 11 — FUEL Android Experience**: `Completed`
-- **Phase 12 — PROGRESS Android Experience**: `Upcoming`
+- **Phase 12 — PROGRESS Android Experience**: `Completed`
 
 ---
 
@@ -442,6 +442,87 @@ FuelHomeScreen     FoodLibrary        MealsScreen         NutritionTarget     Nu
 
 ---
 
+## PROGRESS Domain Architecture
+
+### Source of Truth Philosophy
+The backend API (`Phase 6`) is the single source of truth for all training analytics, volume computations, 1RM estimations, frequency statistics, and personal records. The mobile application never computes business logic or derives analytics locally:
+- **No Client-Side 1RM Calculation**: Epley formula is strictly evaluated by the backend. The mobile client renders values exactly as returned.
+- **No Client-Side Volume Calculation**: Total workload (`weight * reps`) is strictly computed on the backend.
+- **No Recalculation or Rounding**: Backend values (e.g. `107.43`, `12345.67`) are rendered directly without truncation or rounding.
+- **Factual Analytics Only**: Clean, objective visual hierarchy without gamification, streaks, medals, or confetti animations.
+
+```text
+                                       ┌───────────────────┐
+                                       │ ProgressNavigator │
+                                       └─────────┬─────────┘
+                                                 │
+       ┌─────────────────────┬───────────────────┼───────────────────┬───────────────────┐
+       ▼                     ▼                   ▼                   ▼                   ▼
+ProgressHomeScreen   ProgressSummary     WorkoutFrequency    TrainingVolume      PersonalRecords
+(30D Default,        (Aggregate Stats,   (Pace & Weekly      (Total Workload &   (PR Milestones &
+ Quick Nav Cards,     Duration, Sets,     Consistency,        Breakdown Previews) Best Weight/Reps)
+ Volume & PR Previews) Reps, Volume)      Abandoned Note)            │                   │
+                                                                     ├──────────┐        ▼
+                                                                     ▼          ▼   ExercisePerformance
+                                                               ExerciseVolume  MuscleVolume (Deep Dive &
+                                                               (Ranked List)   (Anatomical)  Trend Nav)
+                                                                                                 │
+                                                                                                 ▼
+                                                                                           ExerciseTrend
+                                                                                           (1RM & Weight Curves)
+```
+
+### Key Technical Pillars
+
+1. **Screen Architecture (9 PROGRESS Screens)**:
+   - `ProgressHomeScreen`: Primary dashboard featuring default 30-day `DateRangeSelector`, `ProgressSummaryCard`, quick action navigation grid, total volume summary preview, and latest PR milestone cards.
+   - `ProgressSummaryScreen`: Comprehensive training metrics screen detailing completed workouts, active days, total volume, total sets and reps, and average session duration with factual abandoned session notes.
+   - `WorkoutFrequencyScreen`: Training consistency screen with `FrequencyTrendChart`, weekly workout frequency, completed sessions, and distinct reporting of abandoned workouts.
+   - `TrainingVolumeScreen`: Total workload screen displaying overall tonnage lifted, `VolumeTrendChart` for top volume drivers, and navigation previews for exercise and muscle breakdowns.
+   - `ExerciseVolumeScreen`: Filterable ranked list of movements by total volume with relative progress indicator bars.
+   - `MuscleVolumeScreen`: Anatomical volume distribution across target muscle groups, strictly preserving `UNKNOWN` groups without transformation.
+   - `PersonalRecordsScreen`: Filterable catalog of personal record milestones (estimated 1RM, best weight, best reps, max set volume) achieved across sessions.
+   - `ExercisePerformanceScreen`: Movement deep-dive screen with `ExerciseSelector` modal, aggregate movement statistics (best 1RM, best weight, total volume, session count), and recent session history.
+   - `ExerciseTrendScreen`: Longitudinal strength progression chart displaying real historical points with toggle between Estimated 1RM and Best Weight.
+
+2. **Domain Service Isolation (`progressService`)**:
+   - Centralized singleton wrapping all 9 `@gbud/api-client` PROGRESS endpoints + `listExercises`.
+   - Zero components, hooks, or screens access raw `fetch`, `axios`, or `apiClient` directly.
+
+3. **Custom React State Hooks (`hooks/`)**:
+   - `useProgressSummary`: Training overview data with 30-day default preset and range management.
+   - `useWorkoutFrequency`: Workout consistency and frequency analytics.
+   - `useTrainingVolume`: Concurrent retrieval of volume totals, exercise distribution, and muscle distribution.
+   - `usePersonalRecords`: Filtered personal record milestone logs.
+   - `useExercisePerformance`: Movement performance statistics, session history, and longitudinal trend points.
+   - `useProgressDashboard`: Landing dashboard aggregator combining summary, volume, and PR highlights.
+
+4. **Dedicated PROGRESS UI & Chart Components (`components/`)**:
+   - `DateRangeSelector`: Preset chips (`7D`, `30D`, `90D`, `6M`, `1Y`) and calendar date range display.
+   - `ProgressSectionHeader`: Consistent section header with title, subtitle, and CTA action.
+   - `ProgressMetricCard`: Accent-highlighted metric presentation card.
+   - `ProgressSummaryCard`: Multi-stat training overview card.
+   - `WorkoutFrequencyCard`: Workouts per week display with completed vs abandoned metrics.
+   - `VolumeSummaryCard`: Clean card presenting total tonnage lifted with unit.
+   - `ExerciseVolumeRow`: Ranked exercise workload bar with relative progress fill.
+   - `MuscleVolumeRow`: Anatomical workload distribution bar with strict `UNKNOWN` handling.
+   - `PersonalRecordCard`: Factual PR card highlighting estimated 1RM, weight, reps, and date.
+   - `ExercisePerformanceCard`: Comprehensive movement performance card.
+   - `ExerciseSelector`: Searchable bottom-sheet modal for selecting exercises.
+   - `ExerciseTrendChart`: Pure React Native longitudinal line & point visualizer with 1RM vs Weight toggle.
+   - `VolumeTrendChart`: Pure React Native time-series volume progression bar chart.
+   - `FrequencyTrendChart`: Weekly training consistency & completion rate visualizer.
+   - `ProgressErrorState`: Standardized error card with retry callback.
+
+5. **Authoritative Invariants**:
+   - **No Client Recalculation**: Renders exact numbers provided by the backend without recalculation or client rounding.
+   - **Abandoned Workout Isolation**: Abandoned workouts are never counted as completed workouts.
+   - **Muscle Group Preservation**: `UNKNOWN` muscle groups remain `UNKNOWN` and are never omitted or renamed.
+   - **Feature Isolation**: PROGRESS does not import any TRAIN or FUEL implementation modules.
+   - **Default 30-Day Range**: PROGRESS domains default to a 30-day timeframe to prioritize longitudinal trends.
+
+---
+
 ## Project Roadmap
 
 - **Phase 0 — Project Foundation** *(Completed)* ✅
@@ -456,7 +537,8 @@ FuelHomeScreen     FoodLibrary        MealsScreen         NutritionTarget     Nu
 - **Phase 9 — Android Application Foundation** *(Completed)* ✅
 - **Phase 10 — TRAIN Android Experience** *(Completed)* ✅
 - **Phase 11 — FUEL Android Experience** *(Completed)* ✅
-- **Phase 12 — PROGRESS Android Experience** *(Upcoming)* ⏳
+- **Phase 12 — PROGRESS Android Experience** *(Completed)* ✅
 - **Phase 13 — Android UX & Polish** *(Upcoming)* ⏳
 - **Phase 14 — Production & Android Release** *(Upcoming)* ⏳
+
 

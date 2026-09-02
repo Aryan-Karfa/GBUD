@@ -5,6 +5,8 @@ import {
   TrainRouteParams,
   FuelScreen,
   FuelRouteParams,
+  ProgressScreen,
+  ProgressRouteParams,
 } from './navigation.types';
 import { AuthStatus } from '../auth/auth.types';
 
@@ -18,12 +20,18 @@ export interface FuelStackEntry {
   params?: any;
 }
 
+export interface ProgressStackEntry {
+  screen: ProgressScreen;
+  params?: any;
+}
+
 export class NavigationManager {
   private authScreen: AuthRoute = 'Login';
   private currentTab: MainTab = 'Home';
   private authStatus: AuthStatus = 'UNAUTHENTICATED';
   private trainStack: TrainStackEntry[] = [{ screen: 'TrainHome', params: {} }];
   private fuelStack: FuelStackEntry[] = [{ screen: 'FuelHome', params: {} }];
+  private progressStack: ProgressStackEntry[] = [{ screen: 'ProgressHome', params: {} }];
   private backInterceptor: (() => boolean) | null = null;
   private listeners: Set<() => void> = new Set();
 
@@ -52,6 +60,16 @@ export class NavigationManager {
 
   public getFuelParams(): any {
     const current = this.fuelStack[this.fuelStack.length - 1];
+    return current?.params || {};
+  }
+
+  public getProgressScreen(): ProgressScreen {
+    const current = this.progressStack[this.progressStack.length - 1];
+    return current?.screen || 'ProgressHome';
+  }
+
+  public getProgressParams(): any {
+    const current = this.progressStack[this.progressStack.length - 1];
     return current?.params || {};
   }
 
@@ -89,6 +107,16 @@ export class NavigationManager {
       this.fuelStack = [{ screen: 'FuelHome', params: params || {} }];
     } else {
       this.fuelStack.push({ screen, params: params || {} });
+    }
+    this.notify();
+  }
+
+  public navigateProgress<T extends ProgressScreen>(screen: T, params?: ProgressRouteParams[T]): void {
+    this.currentTab = 'Progress';
+    if (screen === 'ProgressHome') {
+      this.progressStack = [{ screen: 'ProgressHome', params: params || {} }];
+    } else {
+      this.progressStack.push({ screen, params: params || {} });
     }
     this.notify();
   }
@@ -144,6 +172,19 @@ export class NavigationManager {
         return true;
       }
 
+      // In Progress tab: pop sub-screens
+      if (this.currentTab === 'Progress') {
+        if (this.progressStack.length > 1) {
+          this.progressStack.pop();
+          this.notify();
+          return true;
+        }
+        // If at root of Progress (ProgressHome), back goes to Home tab
+        this.currentTab = 'Home';
+        this.notify();
+        return true;
+      }
+
       // In any other non-Home tab: back goes to Home
       if (this.currentTab !== 'Home') {
         this.currentTab = 'Home';
@@ -177,6 +218,7 @@ export class NavigationManager {
     this.authStatus = 'UNAUTHENTICATED';
     this.trainStack = [{ screen: 'TrainHome', params: {} }];
     this.fuelStack = [{ screen: 'FuelHome', params: {} }];
+    this.progressStack = [{ screen: 'ProgressHome', params: {} }];
     this.backInterceptor = null;
     this.notify();
   }

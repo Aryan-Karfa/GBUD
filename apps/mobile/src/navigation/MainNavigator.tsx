@@ -5,7 +5,7 @@ import { MainTab } from './navigation.types';
 import { HomeScreen } from '../screens/home/HomeScreen';
 import { TrainNavigator } from './TrainNavigator';
 import { FuelNavigator } from './FuelNavigator';
-import { ProgressPlaceholderScreen } from '../features/progress/ProgressPlaceholderScreen';
+import { ProgressNavigator } from './ProgressNavigator';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { Text } from '../components/common/Text';
 import { theme } from '../theme/theme';
@@ -37,7 +37,7 @@ export const MainNavigator: React.FC = () => {
       case 'Fuel':
         return <FuelNavigator />;
       case 'Progress':
-        return <ProgressPlaceholderScreen />;
+        return <ProgressNavigator />;
       case 'Profile':
         return <ProfileScreen />;
       default:
