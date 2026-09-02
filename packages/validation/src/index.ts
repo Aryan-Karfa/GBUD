@@ -8,8 +8,6 @@ export const testBodySchema = z.object({
 });
 
 export type TestBodyInput = z.infer<typeof testBodySchema>;
-<<<<<<< HEAD
-=======
 
 export const registerSchema = z.object({
   email: z
@@ -276,4 +274,3 @@ export type TargetQueryInput = z.infer<typeof targetQuerySchema>;
 
 
 
->>>>>>> b83a35e (Completed Phase 9)

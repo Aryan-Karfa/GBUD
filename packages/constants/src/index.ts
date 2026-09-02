@@ -1,7 +1,5 @@
 export const API_ROUTES = {
   HEALTH: '/api/v1/health',
-<<<<<<< HEAD
-=======
   AUTH: {
     REGISTER: '/api/v1/auth/register',
     LOGIN: '/api/v1/auth/login',
@@ -54,7 +52,6 @@ export const API_ROUTES = {
     SUMMARY_COMPARE: '/api/v1/fuel/summary/compare',
     HISTORY: '/api/v1/fuel/history',
   },
->>>>>>> b83a35e (Completed Phase 9)
 } as const;
 
 export const PILLARS = {
@@ -62,7 +59,4 @@ export const PILLARS = {
   FUEL: 'fuel',
   PROGRESS: 'progress',
 } as const;
-<<<<<<< HEAD
-=======
 
->>>>>>> b83a35e (Completed Phase 9)

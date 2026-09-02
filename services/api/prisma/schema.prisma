@@ -12,17 +12,6 @@ enum UserStatus {
   SUSPENDED
 }
 
-<<<<<<< HEAD
-model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  username     String     @unique
-  passwordHash String
-  status       UserStatus @default(ACTIVE)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  sessions     Session[]
-=======
 enum WorkoutSessionStatus {
   IN_PROGRESS
   COMPLETED
@@ -51,7 +40,6 @@ model User {
   customFoods      Food[]
   meals            Meal[]
   nutritionTargets NutritionTarget[]
->>>>>>> b83a35e (Completed Phase 9)
 
   @@map("users")
 }
@@ -69,8 +57,6 @@ model Session {
 
   @@map("sessions")
 }
-<<<<<<< HEAD
-=======
 
 model Exercise {
   id               String                    @id @default(uuid())
@@ -256,4 +242,3 @@ model NutritionTarget {
   @@index([userId, effectiveFrom])
   @@map("nutrition_targets")
 }
->>>>>>> b83a35e (Completed Phase 9)

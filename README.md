@@ -1,16 +1,9 @@
 # GBUD
 
-<<<<<<< HEAD
-GBUD is a production-oriented, cross-platform fitness ecosystem designed to support both mobile and web applications. It is built around three core pillars:
-
-- **TRAIN** — Workout planning, execution, exercise tracking, sets/reps/weight, workout history, and personal records (PRs).
-- **FUEL** — Nutrition and food tracking.
-=======
 GBUD is a production-oriented, Android-first fitness ecosystem built around three core pillars:
 
 - **TRAIN** — Workout planning, execution, exercise tracking, sets/reps/weight, workout history, and personal records (PRs).
 - **FUEL** — Nutrition and food tracking, meals, quantity-scaled nutrition snapshots, time-based targets, and daily intake summaries.
->>>>>>> b83a35e (Completed Phase 9)
 - **PROGRESS** — Body metrics, strength progression, body measurements, analytics, and long-term progress.
 
 ---
@@ -21,17 +14,15 @@ GBUD is a production-oriented, Android-first fitness ecosystem built around thre
 - **Phase 1 — Backend Foundation**: `Completed`
 - **Phase 2 — Database & Prisma**: `Completed`
 - **Phase 3 — Authentication & Identity**: `Completed`
-<<<<<<< HEAD
-- **Phase 4 — Core TRAIN Domain**: `Not Started`
-=======
 - **Phase 4 — Core TRAIN Domain**: `Completed`
 - **Phase 5 — Workout Execution**: `Completed`
 - **Phase 6 — Progress & Training Analytics**: `Completed`
 - **Phase 7 — FUEL & Nutrition Foundation**: `Completed`
 - **Phase 8 — Client Architecture & API Integration**: `Completed`
 - **Phase 9 — Android Application Foundation**: `Completed`
-- **Phase 10 — TRAIN Android Experience**: `Upcoming`
->>>>>>> b83a35e (Completed Phase 9)
+- **Phase 10 — TRAIN Android Experience**: `Completed`
+- **Phase 11 — FUEL Android Experience**: `Completed`
+- **Phase 12 — PROGRESS Android Experience**: `Upcoming`
 
 ---
 
@@ -39,67 +30,45 @@ GBUD is a production-oriented, Android-first fitness ecosystem built around thre
 
 - **Node Version Engine Requirement**: `Node.js >= 22`
 - **Package Manager / Workspace**: `pnpm` Monorepo
-<<<<<<< HEAD
-- **Mobile**: React Native, Expo, TypeScript
-- **Web**: React, Vite, TypeScript
-- **Backend API**: Node.js, Express, TypeScript, Prisma ORM, Bcrypt, JWT (`jsonwebtoken`), Cookie-Parser, Helmet, Zod, Vitest, Supertest
-- **Database**: PostgreSQL, Prisma ORM
-- **State & Data**: Zustand, TanStack Query
-- **Authentication**: JWT Access Tokens + Database Refresh Token Sessions with Atomic Rotation
-
----
-
-## Authentication Architecture (Phase 3 Implemented)
-
-### Registration & Login Lifecycle
-```text
-Client Request
-     ↓
-Zod Validation (registerSchema / loginSchema)
-     ↓
-Auth Controller (Cookie Detection / Transport Handler)
-     ↓
-Auth Service
-     ├── Password Hashing / Verification (bcrypt)
-     ├── User Status Check (ACTIVE enforcement)
-     ├── User Repository (Prisma)
-     └── Session Repository (Atomic Prisma Transaction)
-     ↓
-Tokens & Response
-     ├── Access Token (JWT 15m expiration)
-     ├── Refresh Token (HttpOnly Cookie for Web / JSON for Mobile)
-     └── Safe User Profile (passwordHash & tokenHash NEVER exposed)
-```
-
-### Protected Request Lifecycle
-```text
-Client Request (Header: Authorization: Bearer <access_token>)
-     ↓
-Auth Middleware (`authenticate`)
-     ├── Extract & Verify JWT Access Token
-     ├── Resolve User via UserRepository
-     └── Attach `req.user`
-     ↓
-Protected Controller (`GET /api/v1/auth/me`)
-```
-
-### Atomic Refresh Token Rotation
-```text
-Refresh Request
-     ↓
-Hash Refresh Token (SHA-256)
-     ↓
-Prisma Transaction (`rotateSessionAtomic`)
-     ├── Verify Active Session & Expiration
-     ├── Revoke Old Session
-     └── Issue New Session & Rotated Refresh Token
-```
-=======
 - **Mobile Application**: React Native (0.76.6), Expo (~52.0.0), TypeScript (Android-First Architecture)
 - **Backend API**: Node.js, Express, TypeScript, Prisma ORM, Bcrypt, JWT (`jsonwebtoken`), Cookie-Parser, Helmet, Zod, Vitest, Supertest
 - **Database**: PostgreSQL, Prisma ORM
 - **Client Networking**: `@gbud/api-client` (Fetch, AbortSignal, Single-Flight Refresh Coalescing)
-- **Secure Token Storage**: Expo SecureStore (hardware-encrypted refresh token) + In-memory access token
+- **Secure Token Storage**: Refresh token remains stored through Expo SecureStore; access token remains memory-only
+
+---
+
+## TRAIN Domain Architecture
+
+### Source of Truth Philosophy
+The backend API is the single source of truth for all TRAIN domain operations. The Android mobile client uses the strongly-typed `@gbud/api-client` exclusively through `trainService` without duplicating workout execution or session business logic.
+
+```text
+EXERCISE CATALOG (Categorized by muscle group, equipment, pattern)
+     │
+     ▼
+WORKOUT TEMPLATES (Named routines with ordered exercises & notes)
+     │
+     ▼
+WORKOUT SESSIONS (Only ONE active IN_PROGRESS session permitted)
+     │
+     ├── Exercise Snapshot (Stores immutable name & order per session exercise)
+     │
+     ▼
+WORKOUT SETS (Set number, reps, weight logged sequentially)
+     │
+     ▼
+SESSION COMPLETION / ABANDONMENT
+     │
+     ▼
+WORKOUT HISTORY (Paginated, startedAt DESC, strictly read-only)
+```
+
+### Key Architectural Invariants
+- **Single Active Session Constraint**: The backend strictly enforces that each athlete may only have one `IN_PROGRESS` workout session. When an active session exists, attempting to start another returns `409 CONFLICT`; the mobile app handles this gracefully by displaying an inline banner allowing the athlete to resume their current workout without data loss or application crashes.
+- **Session Snapshot Principle**: When a workout session is created, the backend takes an immutable snapshot of each exercise's name, order, and notes. The mobile app displays this snapshot rather than reconstructing exercises from the catalog, ensuring historical consistency even if catalog exercises change.
+- **Historical Immutability**: Sessions marked `COMPLETED` or `ABANDONED` are strictly read-only. All set modification targets, inline creation forms, and completion/abandonment controls are hidden in historical view screens.
+- **Android Hardware Back Protection**: When an active workout is in progress, pressing the Android hardware back button or tapping the header back button triggers an interceptor modal ("Leave Active Workout?"). Leaving the screen returns to `TrainHome` while keeping the session actively running in the backend.
 
 ---
 
@@ -127,16 +96,6 @@ DERIVED DAILY NUTRITION ANALYTICS
  └── Time-Based Targets (effectiveFrom: @db.Date, @@unique([userId, effectiveFrom]))
 ```
 
-### Key Architectural Invariants
-- **Bulletproof Snapshot Immutability**: `MealFoodEntry` snapshots per-serving reference values AND total macronutrients. Future food catalog edits or food deletions (`foodId` set to `null`) will **NEVER** modify historical meal food entry snapshots or historical quantity edits.
-- **PostgreSQL `@db.Date` Calendar Types**: `Meal.mealDate` and `NutritionTarget.effectiveFrom` use `@db.Date` to avoid UTC timezone offsets.
-- **Strict Unit Matching**: `MealFoodEntry.unit` must equal `Food.servingUnit`. Unit mismatches return `422 VALIDATION_ERROR`.
-- **Food Ownership & Soft Deactivation**:
-  - System foods (`ownerId = null`): Discoverable by all users; immutable to normal users (modification/deletion returns `403 FORBIDDEN`).
-  - Custom user foods (`ownerId = userId`): Scoped strictly to the owner; cross-user access returns `404 NOT_FOUND`. Deleting a custom food soft-deactivates it (`isActive = false`).
-- **Time-Based Target Immutability**: Targets define `@@unique([userId, effectiveFrom])`. Target resolution selects the latest target with `effectiveFrom <= queryDate`. Attempting to `PATCH` an effective target (`effectiveFrom <= today`) returns `409 CONFLICT`.
->>>>>>> b83a35e (Completed Phase 9)
-
 ---
 
 ## Implemented API Endpoints
@@ -149,8 +108,6 @@ DERIVED DAILY NUTRITION ANALYTICS
 | `POST` | `/api/v1/auth/refresh` | Public | Rotate refresh token & issue new access token |
 | `POST` | `/api/v1/auth/logout` | Public | Revoke session server-side & clear cookies |
 | `GET` | `/api/v1/auth/me` | **Bearer** | Retrieve authenticated user profile |
-<<<<<<< HEAD
-=======
 | `GET` | `/api/v1/exercises` | Public | List exercise catalog with pagination & search filtering |
 | `GET` | `/api/v1/exercises/:id` | Public | Retrieve single exercise details |
 | `GET` | `/api/v1/workout-templates` | **Bearer** | List workout templates owned by authenticated user |
@@ -200,30 +157,11 @@ DERIVED DAILY NUTRITION ANALYTICS
 | `GET` | `/api/v1/fuel/targets/current` | **Bearer** | Retrieve active nutrition target for a date |
 | `PATCH` | `/api/v1/fuel/targets/:id` | **Bearer** | Update un-effective target (historical targets return 409) |
 | `DELETE` | `/api/v1/fuel/targets/:id` | **Bearer** | Delete nutrition target |
->>>>>>> b83a35e (Completed Phase 9)
 
 ---
 
 ## Database Architecture (Prisma)
 
-<<<<<<< HEAD
-### `User` Model (`users`)
-- `id` (UUID Primary Key)
-- `email` (Unique String, normalized lowercase)
-- `username` (Unique String)
-- `passwordHash` (String, bcrypt salt factor 10)
-- `status` (`ACTIVE` | `SUSPENDED` Enum)
-- `createdAt`, `updatedAt` (Timestamps)
-- `sessions` (Relation `Session[]` with `onDelete: Cascade`)
-
-### `Session` Model (`sessions`)
-- `id` (UUID Primary Key)
-- `userId` (Foreign Key -> `User.id`)
-- `tokenHash` (Unique String, SHA-256 hash of refresh token)
-- `expiresAt` (Timestamp)
-- `revokedAt` (Optional Timestamp)
-- `createdAt`, `updatedAt` (Timestamps)
-=======
 ### Core Models
 - `User` (`users` table): User identity, bcrypt credentials, status (`ACTIVE` / `SUSPENDED`), sessions, templates, workout sessions, custom foods, meals, and targets.
 - `Session` (`sessions` table): SHA-256 hashed refresh token sessions.
@@ -237,7 +175,6 @@ DERIVED DAILY NUTRITION ANALYTICS
 - `Meal` (`meals` table): `id`, `userId`, `name`, `mealDate` (`@db.Date`), `mealType` (`BREAKFAST` | `LUNCH` | `DINNER` | `SNACK` | `OTHER`), timestamps.
 - `MealFoodEntry` (`meal_food_entries` table): `id`, `mealId`, `foodId` (nullable `onDelete: SetNull`), `foodNameSnapshot`, `quantity`, `unit`, per-serving snapshots, entry total snapshots, timestamps.
 - `NutritionTarget` (`nutrition_targets` table): `id`, `userId`, `calories`, `protein`, `carbohydrates`, `fat`, `effectiveFrom` (`@db.Date`), timestamps (`@@unique([userId, effectiveFrom])`).
->>>>>>> b83a35e (Completed Phase 9)
 
 ---
 
@@ -246,34 +183,17 @@ DERIVED DAILY NUTRITION ANALYTICS
 ```text
 gbud/
 ├── apps/
-<<<<<<< HEAD
-│   ├── mobile/             # Expo + React Native + TypeScript app
-│   └── web/                # React + Vite + TypeScript web app
-│
-├── services/
-│   └── api/                # Express + Node.js + TypeScript REST API
-│       ├── prisma/         # Prisma schema and database configuration
-│       │   └── schema.prisma
-│       └── src/
-│           ├── config/     # Typed environment, app config, & Prisma singleton
-│           ├── controllers/# Thin HTTP Controllers (auth.controller.ts, health.controller.ts)
-│           ├── middleware/ # Request ID, Logger, Validation, Auth, 404, Error handling
-│           ├── modules/    # Domain modules (auth/ module with service, controller, routes)
-│           ├── repositories/# Data access repositories (user.repository.ts, session.repository.ts)
-│           ├── routes/     # Route registry and endpoint routers
-│           ├── services/   # Business logic services
-│           ├── types/      # Express Request type extensions (express.d.ts)
-│           ├── utils/      # AppError, bcrypt password, & JWT security utilities
-│           ├── __tests__/  # Vitest + Supertest testing suite (auth, health, 404, error, validation)
-=======
 │   └── mobile/             # React Native + Expo Android-first mobile application
 │       ├── src/
 │       │   ├── api/        # Typed API client singleton configuration
 │       │   ├── app/        # AppBootstrap & AppProviders composition
 │       │   ├── auth/       # AuthProvider, auth.service, and auth.types
 │       │   ├── components/ # Reusable layout, common, forms, and feedback components
-│       │   ├── features/   # Domain placeholder screens (train, fuel, progress)
-│       │   ├── navigation/ # Root, Auth, and Main navigators with Android BackHandler
+│       │   ├── features/   # Feature domains: train/, fuel/, progress/
+│       │   │   ├── train/  # Phase 10 TRAIN domain (components, hooks, screens, services, types)
+│       │   │   ├── fuel/   # Phase 11 FUEL domain placeholder
+│       │   │   └── progress/# Phase 12 PROGRESS domain placeholder
+│       │   ├── navigation/ # Root, Auth, Main, and Train navigators with BackHandler
 │       │   ├── screens/    # LoginScreen, RegisterScreen, HomeScreen, ProfileScreen
 │       │   ├── storage/    # SecureTokenProvider (Expo SecureStore + in-memory access token)
 │       │   └── theme/      # Colors, typography, spacing, radius, shadows, theme
@@ -295,22 +215,14 @@ gbud/
 │           ├── types/      # Express Request type extensions
 │           ├── utils/      # AppError, bcrypt password, & JWT security utilities
 │           ├── __tests__/  # Vitest + Supertest testing suite (14 test files, 70 passed tests)
->>>>>>> b83a35e (Completed Phase 9)
 │           ├── app.ts      # Express application setup
 │           └── server.ts   # Server startup entry point & graceful shutdown
 │
 ├── packages/
-<<<<<<< HEAD
-│   ├── config/             # Shared app & environment configurations (@gbud/config)
-│   ├── constants/          # Shared domain constants (@gbud/constants)
-│   ├── types/              # Shared TypeScript definitions & API contracts (@gbud/types)
-│   ├── ui/                 # Shared UI component library foundation (@gbud/ui)
-=======
 │   ├── api-client/         # Shared isomorphic API client (@gbud/api-client)
 │   ├── config/             # Shared app & environment configurations (@gbud/config)
 │   ├── constants/          # Shared domain constants (@gbud/constants)
 │   ├── types/              # Shared TypeScript definitions & API contracts (@gbud/types)
->>>>>>> b83a35e (Completed Phase 9)
 │   ├── utils/              # Framework-independent utility functions (@gbud/utils)
 │   └── validation/         # Shared Zod validation schemas (@gbud/validation)
 │
@@ -351,16 +263,10 @@ gbud/
    cp .env.example .env
    ```
 
-<<<<<<< HEAD
-4. **Generate Prisma Client**
-   ```bash
-   pnpm --filter @gbud/api run prisma:generate
-=======
 4. **Generate Prisma Client & Seed System Catalog**
    ```bash
    pnpm --filter @gbud/api run prisma:generate
    pnpm --filter @gbud/api run prisma:seed
->>>>>>> b83a35e (Completed Phase 9)
    ```
 
 5. **Verify TypeScript compilation**
@@ -373,11 +279,7 @@ gbud/
    pnpm test
    ```
 
-<<<<<<< HEAD
-7. **Build all workspace packages and apps**
-=======
 7. **Build all workspace packages and services**
->>>>>>> b83a35e (Completed Phase 9)
    ```bash
    pnpm build
    ```
@@ -388,16 +290,6 @@ gbud/
      pnpm dev:api
      ```
      API health endpoint: `http://localhost:4000/api/v1/health`
-<<<<<<< HEAD
-   - Start Web App:
-     ```bash
-     pnpm dev:web
-     ```
-   - Start Mobile App (Expo):
-     ```bash
-     pnpm dev:mobile
-     ```
-=======
    - Start Mobile App (Expo / Android):
      ```bash
      pnpm dev:mobile
@@ -409,91 +301,149 @@ gbud/
 
 ---
 
-## Phase 9 — Android Application Foundation
+## Phase 10 — TRAIN Android Application Experience
 
-Phase 9 transforms `apps/mobile` into the production-ready Android-first GBUD application foundation. The inactive web application and unused UI packages were cleanly removed, focusing all frontend engineering directly on the Android platform.
+Phase 10 transforms the TRAIN placeholder in `apps/mobile` into the first fully functional GBUD mobile domain, delivering complete workout discovery, template management, active session execution, and historical review.
 
 ### Architecture Overview
 
 ```text
-                        📱 GBUD Android App
-                                 │
-                     ┌───────────▼───────────┐
-                     │     AppBootstrap      │
-                     │  (Restoring Session)  │
-                     └───────────┬───────────┘
-                                 │
-               ┌─────────────────┴─────────────────┐
-               ▼                                   ▼
-        UNAUTHENTICATED                      AUTHENTICATED
-               │                                   │
-               ▼                                   ▼
-         AuthNavigator                       MainNavigator
-         ├── LoginScreen                     ├── HomeScreen
-         └── RegisterScreen                  ├── Train (Phase 10 Placeholder)
-                                             ├── Fuel (Phase 11 Placeholder)
-                                             ├── Progress (Phase 12 Placeholder)
-                                             └── ProfileScreen (Logout & Telemetry)
+                               📱 MainNavigator (Train Tab)
+                                             │
+                                     ┌───────▼───────┐
+                                     │ TrainNavigator│
+                                     └───────┬───────┘
+                                             │
+      ┌─────────────────┬────────────────────┼───────────────────┬──────────────────┐
+      ▼                 ▼                    ▼                   ▼                  ▼
+TrainHomeScreen   ExerciseLibrary     WorkoutTemplates    ActiveWorkout     WorkoutHistory
+(Active Banner,   (Filter & Search)   (List & Quick Start) (Live Execution, (Paginated History,
+ Quick Actions,         │                    │            Header Timer,      Status Badges)
+ Recent Activity)       ▼                    ▼            Ordered Sets,             │
+                  ExerciseDetail      TemplateDetail      Back Interceptor,         ▼
+                  (Equipment, Form)   (Start / Edit)      Complete/Abandon)  HistoryDetail
+                                             │                               (Read-Only Snapshot)
+                                             ▼
+                                      TemplateEditor
+                                      (Move Up/Down,
+                                       Exercise Picker)
 ```
 
 ### Key Technical Pillars
 
-1. **Android-First Design System (`theme/`)**:
-   - Centralized dark-mode palette (`#09090b` primary background, `#18181b` card surface, `#27272a` borders).
-   - High-contrast athletic emerald accent (`#10b981`), amber, and cyan highlights.
-   - 4px/8px grid scale, standard Android typography sizes, and native elevation tokens (`elevation2`, `elevation4`, `elevation8`).
+1. **Screen Architecture (9 TRAIN Screens)**:
+   - `TrainHomeScreen`: Active session banner with live timer, quick action navigation cards, and recent workout activity.
+   - `ExerciseLibraryScreen`: Full catalog browser with search input, horizontal muscle group filter chips, and empty/error states.
+   - `ExerciseDetailScreen`: Single exercise metadata (equipment, movement pattern, type, description, and instructions).
+   - `WorkoutTemplatesScreen`: List of saved routines, quick "Start Workout" action with 409 conflict detection, and "+ Create" header action.
+   - `WorkoutTemplateDetailScreen`: Ordered exercise list with notes, "Start Workout" CTA, "Edit", and "Delete" with confirmation modal.
+   - `WorkoutTemplateEditorScreen`: Routine builder with name/description inputs, Move Up / Move Down reordering, and modal `ExercisePicker`.
+   - `ActiveWorkoutScreen`: Live workout execution surface with `WorkoutProgressHeader`, dynamic timer, session exercise rows, set addition/editing/deletion, `WorkoutActionBar`, and back interceptor.
+   - `WorkoutHistoryScreen`: Paginated list of completed/abandoned workouts sorted `startedAt DESC` with status badges and metrics.
+   - `WorkoutHistoryDetailScreen`: Strictly read-only historical session snapshot showing recorded exercises and sets.
 
-2. **Reusable Foundational Mobile Components (`components/`)**:
-   - `Screen`: Safe-area and status-bar aware layout wrapper with scrollable/non-scrollable modes.
-   - `Card`: Elevated surface card with optional touch feedback.
-   - `Text`: Typography component with standard variants (`hero`, `title`, `heading`, `subheading`, `body`, `caption`, `muted`, `error`, `success`).
-   - `Button`: Primary, secondary, outline, ghost, and danger buttons with active opacity and loading spinner states.
-   - `Input`: Form field with label, focus states, error messages, and password visibility toggle.
-   - `KeyboardAvoidingContainer`: Android soft-keyboard avoiding wrapper.
-   - `LoadingScreen`, `LoadingIndicator`, `ErrorState`, `EmptyState`, `IconButton`, `Divider`.
+2. **Domain Service Isolation (`trainService`)**:
+   - Centralized singleton wrapping all 17 `@gbud/api-client` TRAIN endpoints across exercises, templates, sessions, and sets.
+   - Mobile components and custom hooks never invoke raw `fetch` or access `apiClient` directly.
 
-3. **Secure Token Management (`SecureTokenProvider`)**:
-   - **Access Token**: Kept strictly in memory. Never persisted to disk, `AsyncStorage`, or logs.
-   - **Refresh Token**: Stored securely in `expo-secure-store` with key `gbud_mobile_refresh_token` (hardware-backed Keystore on Android).
-   - Safe cleanup on logout or invalid session.
+3. **Custom React State Hooks (`hooks/`)**:
+   - `useExercises`: Catalog querying, text search, muscle group filtering, pull-to-refresh, and ID lookup.
+   - `useWorkoutTemplates`: Routine listing, creation with sequential exercise additions, editing, deletion, and reordering.
+   - `useWorkoutSession`: Active workout discovery, session creation (with 409 conflict detection & recovery), set logging, updates, deletion, completion, and abandonment.
+   - `useWorkoutHistory`: Paginated history fetching, page navigation, and historical session detail retrieval.
 
-4. **Authentication & Session Lifecycle (`AuthProvider`, `auth.service`)**:
-   - On app launch, `AppBootstrap` initializes and attempts session restoration from SecureStore.
-   - Successfully restored credentials retrieve `/auth/me` and seamlessly route to `MainNavigator`.
-   - Failed or absent credentials route gracefully to `AuthNavigator`.
-   - Client-side schema validation via `@gbud/validation` (`loginSchema`, `registerSchema`).
+4. **Dedicated TRAIN UI Components (`components/`)**:
+   - `MuscleGroupBadge`: Color-coded badge per anatomical muscle group.
+   - `ExerciseCard`: Catalog card displaying muscle badge, equipment, category, and description.
+   - `ExerciseListItem`: Compact selectable list item for pickers.
+   - `ExercisePicker`: Full-screen searchable modal for adding exercises to templates.
+   - `WorkoutTemplateCard`: Routine card with exercise count, preview text, and direct "Start Workout" button.
+   - `WorkoutSetRow`: Active/read-only set row with Set #, Weight, Reps, and edit/delete touch targets.
+   - `SetInputRow`: Form row with client-side validation (enforcing reps, weight, or both, rejecting empty inputs) and inline error display.
+   - `WorkoutExerciseRow`: Container rendering exercise snapshot metadata, logged sets, and inline set entry forms.
+   - `WorkoutTimer`: Dynamic elapsed duration counter calculated from server `startedAt` (`HH:MM:SS`), ticking every second without drift.
+   - `WorkoutProgressHeader`: Active workout header showing live timer, exercise count, and total sets logged.
+   - `WorkoutActionBar`: Bottom action bar with Complete (confirmation modal) and Abandon (danger modal) actions.
 
-5. **Navigation Architecture & Android BackHandler (`NavigationProvider`)**:
-   - Zero bulky third-party navigation bloat. Lightweight, strongly-typed React Native primitives.
-   - Android hardware `BackHandler` integration:
-     - On `RegisterScreen`, hardware back returns to `LoginScreen`.
-     - On secondary tabs (`Train`, `Fuel`, `Progress`, `Profile`), hardware back returns to `HomeScreen`.
-     - On `HomeScreen` and `LoginScreen`, hardware back allows standard Android OS exit/minimize behavior.
+5. **Android Hardware Back Protection**:
+   - `NavigationManager` incorporates a back interceptor hook. When an active session is in progress on `ActiveWorkoutScreen`, pressing the Android hardware back button or top back arrow displays a confirmation dialog ("Leave Active Workout?"). Leaving returns to `TrainHome` while the backend session remains active.
 
-6. **Controlled Domain Placeholders**:
-   - Established future domain boundaries in `src/features/` with descriptive placeholders for subsequent phases:
-     - **TRAIN** (`TrainPlaceholderScreen`): Arriving in Phase 10 (workout planning, execution, live sets/reps).
-     - **FUEL** (`FuelPlaceholderScreen`): Arriving in Phase 11 (nutrition tracking, foods, meals, macros).
-     - **PROGRESS** (`ProgressPlaceholderScreen`): Arriving in Phase 12 (analytics, 1RM progression, volume trends).
+---
 
-7. **Android System Configuration**:
-   - `app.json`: Configured with package `com.gbud.app`, dark splash screen, adaptive icons, and dark Android navigation bar.
-   - Network documentation for Android emulator loopback (`http://10.0.2.2:4000`) vs host/LAN devices.
->>>>>>> b83a35e (Completed Phase 9)
+## Phase 11 — FUEL Android Application Experience
+
+GBUD Phase 11 transformed the Android-first FUEL placeholder in `apps/mobile` into a fully functional nutrition product domain consuming Phase 7 backend capabilities through `@gbud/api-client`.
+
+```text
+                                📱 MainNavigator (Fuel Tab)
+                                              │
+                                      ┌───────▼───────┐
+                                      │ FuelNavigator │
+                                      └───────┬───────┘
+                                              │
+      ┌──────────────────┬────────────────────┼───────────────────┬──────────────────┐
+      ▼                  ▼                    ▼                   ▼                  ▼
+FuelHomeScreen     FoodLibrary        MealsScreen         NutritionTarget     NutritionHistory
+(Date Selector,    (Filter & Search)  (Date-Driven Meals) (Effective Target   (30-Day Intake Log)
+ Today's Summary,        │                    │            & History)                │
+ Quick Actions)          ▼                    ▼                   │                  ▼
+                   FoodDetail         MealDetail          NutritionComparison (Read-Only Detail)
+                   (Facts, Edit,      (Snapshot Entries,  (Side-by-Side Day
+                    Deactivate)        Add/Edit/Remove)    Comparison)
+                         │                    │
+                         ▼                    ▼
+                   CustomFoodEditor   MealEditorScreen
+                   (Creation/Edit)    (Create/Edit Meal)
+```
+
+### Key Technical Pillars
+
+1. **Screen Architecture (10 FUEL Screens)**:
+   - `FuelHomeScreen`: Primary landing screen with calendar `DateSelector`, `NutritionSummaryCard` comparing daily totals against date-effective target, today's meals list, and quick actions.
+   - `FoodLibraryScreen`: Server-queried catalog browser with search input, horizontal filter chips (`ALL`, `SYSTEM`, `CUSTOM`), and "+ Custom" header action.
+   - `FoodDetailScreen`: Comprehensive nutrition facts display; custom foods feature Edit and Deactivate actions; system foods are strictly read-only.
+   - `CustomFoodEditorScreen`: Custom food creator and editor with client-side validation for serving size, units, and non-negative macro values.
+   - `MealsScreen`: Date-driven meals overview with `DateSelector`, meal cards with nutrition totals, and "+ Add Meal" action.
+   - `MealDetailScreen`: Detailed meal overview with authoritative totals, list of `MealFoodRow` items with immutable snapshots, "+ Add Food" opening `FoodPicker`, edit quantity modal, remove entry confirmation, and meal deletion.
+   - `MealEditorScreen`: Meal creation/edit form for meal name, meal category (BREAKFAST, LUNCH, DINNER, SNACK, OTHER), and calendar date.
+   - `NutritionTargetScreen`: Displays the target applicable to the selected calendar date (`effectiveFrom <= selectedDate`), target history list, and form to schedule future targets with 409 conflict detection.
+   - `NutritionHistoryScreen`: Chronological list of daily summaries across the past 30 days without premature charting.
+   - `NutritionComparisonScreen`: Side-by-side date intake comparison between two selected calendar dates without judgmental scoring or gamification.
+
+2. **Domain Service Isolation (`fuelService`)**:
+   - Centralized singleton wrapping all 21 `@gbud/api-client` FUEL endpoints across foods, meals, meal entries, targets, and summaries.
+   - No components, hooks, or screens invoke raw `fetch` or access `apiClient` directly.
+
+3. **Custom React State Hooks (`hooks/`)**:
+   - `useFoods`: Server-driven food querying, pagination, system vs custom filtering, and custom food mutations.
+   - `useMeals`: Date-aware meal logging, meal detail retrieval, and authoritative food entry management.
+   - `useNutritionTargets`: Date-effective target resolution, target history listing, and target creation with conflict handling.
+   - `useDailyNutrition`: Daily intake summaries, date-specific target comparisons, date range history, and neutral date comparisons.
+
+4. **Dedicated FUEL UI Components (`components/`)**:
+   - `FoodTypeBadge`: Pill badge distinguishing "SYSTEM" (emerald) vs "CUSTOM" (amber).
+   - `MealTypeBadge`: Category badge for meal types (BREAKFAST, LUNCH, DINNER, SNACK, OTHER).
+   - `FoodCard`: Catalog card displaying serving size, calories, and macro breakdown.
+   - `FoodListItem`: Compact selectable list item for pickers.
+   - `MealCard`: Card displaying meal type, food count, and nutrition totals.
+   - `MealFoodRow`: Container rendering immutable food snapshot values (`foodNameSnapshot`, `caloriesSnapshot`, etc.) with edit and remove targets.
+   - `NutritionProgressRow`: Clean progress bar displaying actual vs target intake without judgmental colors.
+   - `NutritionSummaryCard`: Daily intake summary card with macro progress rows.
+   - `NutritionTargetCard`: Card showing target calories, protein, carbs, fat, and effective date.
+   - `DateSelector`: Lightweight calendar date navigator without timezone skew.
+   - `FoodQuantityInput`: Modal for editing entry quantity with input validation.
+   - `FoodPicker`: Searchable modal for browsing and adding foods with initial quantities.
+   - `FuelErrorState`: Contextual error card with retry handler.
+
+5. **Authoritative Invariants**:
+   - **No Optimistic Nutrition State**: Mobile client never computes meal or daily nutrition totals locally; all displayed totals derive strictly from backend responses.
+   - **Historical Food Snapshot Immutability**: Past meal entries render immutable server snapshot values, preserving historical integrity even if catalog food definitions change or are deleted.
+   - **Date-Aware Target Resolution**: Target comparison resolves the target applicable to the selected calendar date (`effectiveFrom <= requestedDate`).
 
 ---
 
 ## Project Roadmap
 
-<<<<<<< HEAD
-- **Phase 0 — Project Foundation** *(Completed)*
-- **Phase 1 — Backend Foundation** *(Completed)*
-- **Phase 2 — Database & Prisma** *(Completed)*
-- **Phase 3 — Authentication & Identity** *(Completed)*
-- **Phase 4 — Core TRAIN Domain** *(Upcoming: Workout models, Exercise library, Sets/Reps/Weight tracking, Personal Records, Workout Execution)*
-- **Phase 5 — FUEL Domain**
-- **Phase 6 — PROGRESS Domain**
-=======
 - **Phase 0 — Project Foundation** *(Completed)* ✅
 - **Phase 1 — Backend Foundation** *(Completed)* ✅
 - **Phase 2 — Database & Prisma** *(Completed)* ✅
@@ -504,9 +454,9 @@ Phase 9 transforms `apps/mobile` into the production-ready Android-first GBUD ap
 - **Phase 7 — FUEL & Nutrition Foundation** *(Completed)* ✅
 - **Phase 8 — Client Architecture & API Integration** *(Completed)* ✅
 - **Phase 9 — Android Application Foundation** *(Completed)* ✅
-- **Phase 10 — TRAIN Android Experience** *(Upcoming)* ⏳
-- **Phase 11 — FUEL Android Experience** *(Upcoming)* ⏳
+- **Phase 10 — TRAIN Android Experience** *(Completed)* ✅
+- **Phase 11 — FUEL Android Experience** *(Completed)* ✅
 - **Phase 12 — PROGRESS Android Experience** *(Upcoming)* ⏳
 - **Phase 13 — Android UX & Polish** *(Upcoming)* ⏳
 - **Phase 14 — Production & Android Release** *(Upcoming)* ⏳
->>>>>>> b83a35e (Completed Phase 9)
+

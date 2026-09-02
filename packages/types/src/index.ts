@@ -36,8 +36,6 @@ export interface BaseEntity {
   createdAt: string;
   updatedAt: string;
 }
-<<<<<<< HEAD
-=======
 
 export interface UserDTO {
   id: string;
@@ -374,4 +372,3 @@ export interface DateQueryParam {
   date?: string;
 }
 
->>>>>>> b83a35e (Completed Phase 9)

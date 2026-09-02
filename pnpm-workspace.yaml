@@ -4,15 +4,11 @@ packages:
   - 'packages/*'
 
 allowBuilds:
-<<<<<<< HEAD
-  esbuild: true
-=======
   '@prisma/client': true
   '@prisma/engines': true
   bcrypt: true
   esbuild: true
   prisma: true
->>>>>>> b83a35e (Completed Phase 9)
 
 onlyBuiltDependencies:
   - esbuild

@@ -9,29 +9,19 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-<<<<<<< HEAD
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-=======
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "@gbud/api-client": "workspace:*",
->>>>>>> b83a35e (Completed Phase 9)
     "@gbud/config": "workspace:*",
     "@gbud/constants": "workspace:*",
     "@gbud/types": "workspace:*",
     "@gbud/utils": "workspace:*",
-<<<<<<< HEAD
-    "expo": "~52.0.0",
-=======
     "@gbud/validation": "workspace:*",
     "expo": "~52.0.0",
     "expo-secure-store": "~14.0.1",
->>>>>>> b83a35e (Completed Phase 9)
     "expo-status-bar": "~2.0.0",
     "react": "18.3.1",
     "react-native": "0.76.6"
@@ -39,11 +29,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.0",
     "@types/react": "~18.3.12",
-<<<<<<< HEAD
-    "typescript": "^5.7.2"
-=======
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
->>>>>>> b83a35e (Completed Phase 9)
   }
 }

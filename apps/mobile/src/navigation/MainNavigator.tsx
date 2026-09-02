@@ -3,8 +3,8 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from './NavigationProvider';
 import { MainTab } from './navigation.types';
 import { HomeScreen } from '../screens/home/HomeScreen';
-import { TrainPlaceholderScreen } from '../features/train/TrainPlaceholderScreen';
-import { FuelPlaceholderScreen } from '../features/fuel/FuelPlaceholderScreen';
+import { TrainNavigator } from './TrainNavigator';
+import { FuelNavigator } from './FuelNavigator';
 import { ProgressPlaceholderScreen } from '../features/progress/ProgressPlaceholderScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { Text } from '../components/common/Text';
@@ -33,9 +33,9 @@ export const MainNavigator: React.FC = () => {
       case 'Home':
         return <HomeScreen />;
       case 'Train':
-        return <TrainPlaceholderScreen />;
+        return <TrainNavigator />;
       case 'Fuel':
-        return <FuelPlaceholderScreen />;
+        return <FuelNavigator />;
       case 'Progress':
         return <ProgressPlaceholderScreen />;
       case 'Profile':

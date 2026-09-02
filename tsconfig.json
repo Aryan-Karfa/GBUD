@@ -11,14 +11,8 @@
     { "path": "./packages/types" },
     { "path": "./packages/utils" },
     { "path": "./packages/validation" },
-<<<<<<< HEAD
-    { "path": "./packages/ui" },
-    { "path": "./services/api" },
-    { "path": "./apps/web" },
-=======
     { "path": "./packages/api-client" },
     { "path": "./services/api" },
->>>>>>> b83a35e (Completed Phase 9)
     { "path": "./apps/mobile" }
   ]
 }

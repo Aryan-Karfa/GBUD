@@ -13,6 +13,7 @@ export const ActivityIndicator = 'ActivityIndicator';
 export const KeyboardAvoidingView = 'KeyboardAvoidingView';
 export const SafeAreaView = 'SafeAreaView';
 export const StatusBar = 'StatusBar';
+export const Modal = 'Modal';
 
 type BackHandlerListener = () => boolean | null | undefined;
 const backHandlerListeners: BackHandlerListener[] = [];
