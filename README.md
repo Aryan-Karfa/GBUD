@@ -523,6 +523,68 @@ ProgressHomeScreen   ProgressSummary     WorkoutFrequency    TrainingVolume     
 
 ---
 
+## HOME / Daily Command Center Architecture
+
+Phase 13 transforms the Android-first `apps/mobile` HOME experience into the central daily command center, seamlessly orchestrating the three core domains: **TRAIN**, **FUEL**, and **PROGRESS**.
+
+### Core Philosophy & Invariants
+- **Orchestration & Presentation Only**: HOME does not own any domain state, business logic, analytics models, or persistent entities. It orchestrates existing domain services and renders presentation components.
+- **Backend Single Source of Truth**: HOME never calculates workout volume, 1RM, PRs, frequency, calorie totals, or macros. All numbers are rendered authoritatively as returned by the backend.
+- **Domain Isolation & Partial Error Resilience**: Each domain (TRAIN, FUEL, PROGRESS) is fetched concurrently with isolated error boundaries. If one domain fails (e.g. temporary network issue on FUEL), the other domains continue to render uninterrupted with an isolated retry action.
+- **Calm, Non-Judgmental Nutrition**: Aligned with GBUD's philosophy, the FUEL card prioritizes today's meal logs and factual intake over obsessive calorie/macro pressure.
+- **Authoritative First-Run Detection**: `isNewUser` is strictly evaluated only when all three domains confirm zero active or completed historical activity with no errors, rendering a welcoming `HomeEmptyState` rather than a wall of zeros.
+- **Active Workout Priority**: When a training session is `IN_PROGRESS`, it takes priority in both the training section and quick action grid, providing direct resumption via `navigateTrain('ActiveWorkout')`.
+
+```text
+                         HOME (Command Center)
+                                   │
+                 ┌─────────────────┼─────────────────┐
+                 │                 │                 │
+                 ▼                 ▼                 ▼
+           TRAIN SERVICE     FUEL SERVICE    PROGRESS SERVICE
+           (Active/Recent)  (Summary/Meals)     (Dashboard)
+                 │                 │                 │
+                 └─────────────────┼─────────────────┘
+                                   │
+                                   ▼
+                     Isolated Domain Dashboard State
+               { training: DomainResult, fuel: DomainResult, ... }
+                                   │
+                                   ▼
+                       HomeScreen Presentation
+       [HomeHeader] [QuickActionGrid] [Training] [Fuel] [Progress] [Recent]
+```
+
+### Key Technical Pillars
+
+1. **Orchestration Service (`home.service.ts`)**:
+   - Thin coordinator delegating strictly to `trainService`, `fuelService`, and `progressService`.
+   - Executes parallel requests via `Promise.all` with individual try/catch wrappers returning typed `DomainResult<T>`.
+   - Zero raw `fetch`, `axios`, or direct `apiClient` invocations.
+
+2. **Custom State Hook (`useHomeDashboard`)**:
+   - Manages unified dashboard state with pull-to-refresh (`refresh()`) and isolated domain retries (`retryTraining()`, `retryFuel()`, `retryProgress()`).
+   - Authoritatively calculates `isNewUser` without artificial assumptions.
+
+3. **Dedicated HOME UI Components (`components/`)**:
+   - `HomeHeader`: Athlete greeting, formatted calendar date without timezone skew, and profile tab shortcut.
+   - `HomeSectionHeader`: Consistent domain section header with optional CTA link.
+   - `ActiveWorkoutCard`: High-priority card surfaced when a workout is `IN_PROGRESS` with duration and `[ Continue Workout → ]`.
+   - `TrainingHomeCard`: Idle training card with last session summary, `[ Start Workout ]`, and `[ History ]`.
+   - `FuelHomeCard`: Calm daily nutrition card displaying logged meals and compact authoritative macro totals.
+   - `ProgressHomeCard`: Training progression snapshot displaying total workload tonnage with unit, active days, and latest PR milestone.
+   - `QuickActionGrid`: Contextual 3-column action grid dynamically adapting between "Continue" and "Start" workout based on active session state.
+   - `RecentActivityCard`: Authoritative recent activity list combining completed workout, logged meal, and PR milestone (omitted cleanly if empty).
+   - `HomeLoadingState`: Unified skeleton/loader layout preventing flickering multi-spinners.
+   - `HomeErrorState`: Contextual error card with domain-isolated retry action.
+   - `HomeEmptyState`: Welcoming first-run guide for new athletes explaining TRAIN, FUEL, and PROGRESS pillars.
+
+4. **Cross-Domain Navigation Integration**:
+   - Preserves typed navigation architecture via `NavigationManager` and `useNavigation()`.
+   - Deep navigation links from Home into `ActiveWorkout`, `WorkoutTemplates`, `WorkoutHistory`, `Meals`, `FuelHome`, `ProgressHome`, and `PersonalRecords`.
+
+---
+
 ## Project Roadmap
 
 - **Phase 0 — Project Foundation** *(Completed)* ✅
@@ -538,7 +600,8 @@ ProgressHomeScreen   ProgressSummary     WorkoutFrequency    TrainingVolume     
 - **Phase 10 — TRAIN Android Experience** *(Completed)* ✅
 - **Phase 11 — FUEL Android Experience** *(Completed)* ✅
 - **Phase 12 — PROGRESS Android Experience** *(Completed)* ✅
-- **Phase 13 — Android UX & Polish** *(Upcoming)* ⏳
+- **Phase 13 — HOME / Dashboard / Product Integration** *(Completed)* ✅
 - **Phase 14 — Production & Android Release** *(Upcoming)* ⏳
+
 
 
