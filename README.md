@@ -23,6 +23,8 @@ GBUD is a production-oriented, Android-first fitness ecosystem built around thre
 - **Phase 10 — TRAIN Android Experience**: `Completed`
 - **Phase 11 — FUEL Android Experience**: `Completed`
 - **Phase 12 — PROGRESS Android Experience**: `Completed`
+- **Phase 13 — HOME / Dashboard / Product Integration**: `Completed`
+- **Phase 14 — Production Hardening & Release Preparation**: `Completed`
 
 ---
 
@@ -31,10 +33,12 @@ GBUD is a production-oriented, Android-first fitness ecosystem built around thre
 - **Node Version Engine Requirement**: `Node.js >= 22`
 - **Package Manager / Workspace**: `pnpm` Monorepo
 - **Mobile Application**: React Native (0.76.6), Expo (~52.0.0), TypeScript (Android-First Architecture)
-- **Backend API**: Node.js, Express, TypeScript, Prisma ORM, Bcrypt, JWT (`jsonwebtoken`), Cookie-Parser, Helmet, Zod, Vitest, Supertest
-- **Database**: PostgreSQL, Prisma ORM
+- **Backend API**: Node.js, Express, TypeScript, Prisma ORM, Bcrypt, JWT (`jsonwebtoken`), Cookie-Parser, Helmet, Express-Rate-Limit, Zod, Vitest, Supertest
+- **Database**: PostgreSQL, Prisma ORM (Reproducible Migrations)
 - **Client Networking**: `@gbud/api-client` (Fetch, AbortSignal, Single-Flight Refresh Coalescing)
 - **Secure Token Storage**: Refresh token remains stored through Expo SecureStore; access token remains memory-only
+- **Android Release Architecture**: Expo Application Services (EAS Build), Managed Signing, APK for preview testing, AAB for Google Play Store distribution
+- **Test Suite**: 357 automated tests across 8 packages (100% passing)
 
 ---
 
@@ -102,7 +106,8 @@ DERIVED DAILY NUTRITION ANALYTICS
 
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/health` | Public | System runtime status |
+| `GET` | `/api/v1/health` | Public | System runtime liveness probe |
+| `GET` | `/api/v1/health/ready` | Public | Database connectivity readiness probe |
 | `POST` | `/api/v1/auth/register` | Public | Register new user account |
 | `POST` | `/api/v1/auth/login` | Public | Authenticate user & issue tokens |
 | `POST` | `/api/v1/auth/refresh` | Public | Rotate refresh token & issue new access token |
@@ -189,34 +194,37 @@ gbud/
 │       │   ├── app/        # AppBootstrap & AppProviders composition
 │       │   ├── auth/       # AuthProvider, auth.service, and auth.types
 │       │   ├── components/ # Reusable layout, common, forms, and feedback components
-│       │   ├── features/   # Feature domains: train/, fuel/, progress/
-│       │   │   ├── train/  # Phase 10 TRAIN domain (components, hooks, screens, services, types)
-│       │   │   ├── fuel/   # Phase 11 FUEL domain placeholder
-│       │   │   └── progress/# Phase 12 PROGRESS domain placeholder
-│       │   ├── navigation/ # Root, Auth, Main, and Train navigators with BackHandler
-│       │   ├── screens/    # LoginScreen, RegisterScreen, HomeScreen, ProfileScreen
+│       │   ├── features/   # Functional product domains
+│       │   │   ├── train/  # TRAIN domain (exercises, templates, sessions, sets)
+│       │   │   ├── fuel/   # FUEL domain (foods, meals, entries, targets, summaries)
+│       │   │   ├── progress/# PROGRESS domain (frequency, volume, PRs, performance, trends)
+│       │   │   └── home/   # HOME domain (dashboard orchestration & command center)
+│       │   ├── navigation/ # Root, Auth, Main, Train, Fuel, Progress navigators
+│       │   ├── screens/    # Screen entry points & re-exports
 │       │   ├── storage/    # SecureTokenProvider (Expo SecureStore + in-memory access token)
 │       │   └── theme/      # Colors, typography, spacing, radius, shadows, theme
 │       ├── App.tsx         # Mobile entry point
-│       ├── app.json        # Expo & Android configuration (package: com.gbud.app)
+│       ├── app.json        # Expo & Android configuration (package: com.gbud.app, versionCode: 1)
+│       ├── eas.json        # EAS Build profiles (preview APK, production AAB)
 │       └── package.json
 │
 ├── services/
 │   └── api/                # Express + Node.js + TypeScript REST API
-│       ├── prisma/         # Prisma schema, migrations, & catalog seed script
+│       ├── prisma/         # Prisma schema, SQL migrations, & catalog seed script
+│       │   └── migrations/ # Reproducible PostgreSQL migration baseline
 │       └── src/
 │           ├── config/     # Typed environment, app config, & Prisma singleton
 │           ├── controllers/# Thin HTTP Controllers
-│           ├── middleware/ # Request ID, Logger, Validation, Auth, 404, Error handling
+│           ├── middleware/ # Request ID, Logger, Validation, Auth, Rate-Limit, 404, Error handling
 │           ├── modules/    # Domain modules (auth/, train/, progress/, fuel/)
 │           ├── repositories/# Data access repositories
 │           ├── routes/     # Route registry and endpoint routers
 │           ├── services/   # Domain services
 │           ├── types/      # Express Request type extensions
 │           ├── utils/      # AppError, bcrypt password, & JWT security utilities
-│           ├── __tests__/  # Vitest + Supertest testing suite (14 test files, 70 passed tests)
+│           ├── __tests__/  # Vitest + Supertest testing suite (15 test files, 76 passed tests)
 │           ├── app.ts      # Express application setup
-│           └── server.ts   # Server startup entry point & graceful shutdown
+│           └── server.ts   # Server startup entry point, process crash handlers & graceful shutdown
 │
 ├── packages/
 │   ├── api-client/         # Shared isomorphic API client (@gbud/api-client)
@@ -263,9 +271,10 @@ gbud/
    cp .env.example .env
    ```
 
-4. **Generate Prisma Client & Seed System Catalog**
+4. **Generate Prisma Client, Apply Migrations & Seed Catalog**
    ```bash
    pnpm --filter @gbud/api run prisma:generate
+   pnpm --filter @gbud/api run prisma:deploy
    pnpm --filter @gbud/api run prisma:seed
    ```
 
@@ -274,7 +283,7 @@ gbud/
    pnpm typecheck
    ```
 
-6. **Run automated testing suite**
+6. **Run automated testing suite (357 tests passing)**
    ```bash
    pnpm test
    ```
