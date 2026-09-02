@@ -601,7 +601,135 @@ Phase 13 transforms the Android-first `apps/mobile` HOME experience into the cen
 - **Phase 11 — FUEL Android Experience** *(Completed)* ✅
 - **Phase 12 — PROGRESS Android Experience** *(Completed)* ✅
 - **Phase 13 — HOME / Dashboard / Product Integration** *(Completed)* ✅
-- **Phase 14 — Production & Android Release** *(Upcoming)* ⏳
+- **Phase 14 — Production Hardening & Release Preparation** *(Completed)* ✅
+
+---
+
+## Phase 14 — Production Hardening & Release Architecture
+
+Phase 14 transitions GBUD from feature-complete to a fully hardened release candidate ready for production deployment and Android distribution.
+
+### 1. Backend Security & Reliability
+
+- **In-Process Rate Limiting (`middleware/rate-limit.middleware.ts`)**:
+  - `authRateLimiter`: Strictly safeguards abuse-sensitive authentication endpoints (`/api/v1/auth/login`, `/api/v1/auth/register`, `/api/v1/auth/refresh`) to 30 requests per 15-minute window per IP. Returns standardized GBUD 429 response:
+    ```json
+    {
+      "success": false,
+      "message": "Too many authentication attempts. Please try again later.",
+      "error": { "code": "TOO_MANY_REQUESTS", "details": { "retryAfter": "..." } },
+      "timestamp": "2026-09-03T02:00:00.000Z"
+    }
+    ```
+  - `apiRateLimiter`: Broad defense against flood traffic on all `/api/v1/*` routes (1,000 requests per 15 minutes per IP).
+  - *Architectural Note*: In-process rate limiting is instance-bound. If horizontal multi-instance scaling is introduced, replace with a centralized store (e.g. Redis).
+- **Security Headers (`helmet`)**:
+  - Sets standard HTTP defense headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Strict-Transport-Security`).
+- **Server-Side Error Observability (`error.middleware.ts`)**:
+  - Unexpected 500 errors are safely logged on the server with request correlation ID, timestamp, HTTP route, and stack trace.
+  - Production responses are strictly sanitized to generic `"Internal server error"` (`details: null`) with no leakage of database schemas, SQL statements, or stack traces.
+- **Process Crash Handlers (`server.ts`)**:
+  - `uncaughtException` and `unhandledRejection` handlers log diagnostic information, trigger graceful HTTP server closure, disconnect Prisma cleanly, and exit with code `1` so process supervisors / container orchestrators (Docker, Kubernetes, systemd) can safely restart the instance.
+- **Health & Readiness Architecture**:
+  - `GET /api/v1/health`: Lightweight HTTP liveness probe (does not depend on database).
+  - `GET /api/v1/health/ready`: Deep readiness probe verifying active PostgreSQL connectivity via Prisma (`SELECT 1`). Returns `200` when connected and `503` when unavailable.
+
+---
+
+### 2. Production Environment Configuration
+
+The root `.env.example` provides the authoritative template for production backend environments:
+
+| Variable | Required in Prod | Description |
+| :--- | :---: | :--- |
+| `NODE_ENV` | **Yes** | Must be set to `production`. Enforces strict JWT validation and error masking. |
+| `DATABASE_URL` | **Yes** | PostgreSQL connection URL with connection pool options and SSL (`?sslmode=require`). |
+| `JWT_ACCESS_SECRET` | **Yes** | Minimum 32-character cryptographically secure random secret for access tokens. |
+| `JWT_REFRESH_SECRET` | **Yes** | Minimum 32-character cryptographically secure random secret for refresh tokens. |
+| `JWT_ACCESS_EXPIRES_IN`| No | Token lifetime (default: `15m`). |
+| `JWT_REFRESH_EXPIRES_IN`| No | Token lifetime (default: `7d`). |
+| `API_PORT` | No | Server listening port (default: `4000`). |
+| `CORS_ORIGIN` | No | Comma-separated allowed origins. In production, defaults to `false` (no browser CORS needed for Android). |
+| `EXPO_PUBLIC_API_URL` | **Yes (Mobile)** | HTTPS URL for production mobile builds (`https://api.gbud.app`). Insecure HTTP is rejected at runtime. |
+
+---
+
+### 3. Database Production Operations Runbook
+
+#### 3.1 Migration Baseline & Deployment
+All 12 models and composite indexes are captured in the baseline migration:
+`services/api/prisma/migrations/20260903000000_init/migration.sql`
+
+For production deployment:
+```bash
+# 1. Install locked dependencies
+pnpm install --frozen-lockfile
+
+# 2. Generate Prisma Client
+pnpm --filter @gbud/api prisma:generate
+
+# 3. Apply pending migrations safely
+pnpm --filter @gbud/api prisma:deploy
+```
+> **CRITICAL RULE**: Never run `prisma db push` or `prisma migrate reset` in production environments. Always use `prisma migrate deploy`.
+
+#### 3.2 Scheduled Backups (PostgreSQL)
+Run automated backups daily before running schema migrations:
+```bash
+# Export compressed custom-format backup
+pg_dump -h <HOST> -U <USER> -d gbud -F c -b -v -f "gbud_backup_$(date +%Y%m%d_%H%M%S).dump"
+```
+
+#### 3.3 Database Restore Procedure
+To restore from a verified backup:
+```bash
+# 1. Terminate active application connections
+# 2. Restore schema and data via pg_restore
+pg_restore -h <HOST> -U <USER> -d gbud -v --clean --if-exists "gbud_backup_<TIMESTAMP>.dump"
+```
+
+---
+
+### 4. Android Release Configuration (EAS & Expo)
+
+The mobile client is configured for Google Play Store release candidates via Expo EAS:
+
+- **App Identity (`apps/mobile/app.json`)**:
+  - Package ID: `com.gbud.app`
+  - Version: `0.1.0`
+  - Version Code: `1` (Must be incremented integer for each Play Store submission)
+  - Orientation: `portrait`
+  - Theme: Dark background (`#09090b`)
+- **EAS Profiles (`apps/mobile/eas.json`)**:
+  - `preview`: Generates internal standalone `.apk` for physical device QA testing.
+  - `production`: Generates signed `.aab` (Android App Bundle) optimized for Google Play distribution.
+- **Production Build Commands**:
+  ```bash
+  cd apps/mobile
+
+  # Build internal test APK:
+  eas build --platform android --profile preview
+
+  # Build production Google Play AAB:
+  eas build --platform android --profile production
+  ```
+- **Signing Key Hygiene**:
+  - Managed signing credentials are held securely in Expo EAS or encrypted cloud secret managers.
+  - Keystores (`*.keystore`, `*.jks`) and build outputs (`*.apk`, `*.aab`) are strictly ignored in `.gitignore`.
+
+---
+
+### 5. Production Troubleshooting Guide
+
+| Symptom | Probable Cause | Resolution |
+| :--- | :--- | :--- |
+| **API fails startup immediately** | Missing `JWT_ACCESS_SECRET` or `JWT_REFRESH_SECRET` | Ensure secrets are defined in production environment (minimum 32 characters). |
+| **`/api/v1/health/ready` returns 503** | PostgreSQL connection failure or bad `DATABASE_URL` | Check PostgreSQL server status, network connectivity, SSL settings, and credentials. |
+| **429 TOO_MANY_REQUESTS on login** | Exceeded 30 auth attempts in 15 minutes | Wait for the `Retry-After` duration or verify client isn't retrying failed logins in a loop. |
+| **Android client rejects API URL** | Insecure `http://` used in release mode | Configure `EXPO_PUBLIC_API_URL=https://...` with a valid HTTPS endpoint. |
+| **Prisma migration lock error** | Another deployment is actively migrating | Check `_prisma_migrations` table; ensure only one instance executes `prisma:deploy`. |
+| **Android build fails on version code** | Version code was not incremented | Increment `versionCode` in `apps/mobile/app.json` before triggering a new build. |
+
 
 
 

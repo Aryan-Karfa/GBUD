@@ -6,6 +6,7 @@ import { appConfig } from './config';
 import apiRouter from './routes';
 import { requestIdMiddleware } from './middleware/request-id.middleware';
 import { loggerMiddleware } from './middleware/logger.middleware';
+import { apiRateLimiter } from './middleware/rate-limit.middleware';
 import { notFoundMiddleware } from './middleware/not-found.middleware';
 import { errorMiddleware } from './middleware/error.middleware';
 
@@ -22,8 +23,8 @@ export function createApp(): Express {
   app.use(requestIdMiddleware);
   app.use(loggerMiddleware);
 
-  // Mount API V1 routes
-  app.use(appConfig.apiVersion, apiRouter);
+  // Mount API V1 routes with general rate limiter
+  app.use(appConfig.apiVersion, apiRateLimiter, apiRouter);
 
   // 404 Unmapped Route Handler
   app.use(notFoundMiddleware);

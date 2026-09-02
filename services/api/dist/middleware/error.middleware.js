@@ -20,9 +20,17 @@ function errorMiddleware(err, _req, res, _next) {
         message = err.message || 'An unexpected error occurred';
     }
     // In production, mask unhandled 500 internal errors for security
-    if (statusCode === 500 && config_1.appConfig.env === 'production') {
-        message = 'Internal server error';
-        details = null;
+    if (statusCode >= 500) {
+        if (config_1.appConfig.env !== 'test') {
+            const reqId = _req.id || 'N/A';
+            console.error(`[${new Date().toISOString()}] [${reqId}] Internal Server Error: ${err?.message || 'Unknown error'}\n` +
+                `  Route: ${_req.method} ${_req.originalUrl}\n` +
+                `  Stack: ${err?.stack || 'No stack trace available'}`);
+        }
+        if (config_1.appConfig.env === 'production') {
+            message = 'Internal server error';
+            details = null;
+        }
     }
     res.status(statusCode).json({
         success: false,

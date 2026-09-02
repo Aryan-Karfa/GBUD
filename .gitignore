@@ -9,11 +9,17 @@ build/
 .expo/
 web-build/
 *.tsbuildinfo
+*.apk
+*.aab
 
-# Environment & Secrets
+# Environment, Keystores & Secrets
 .env
 .env.*
 !.env.example
+*.keystore
+*.jks
+credentials.json
+.eas/
 
 # Logs
 npm-debug.log*

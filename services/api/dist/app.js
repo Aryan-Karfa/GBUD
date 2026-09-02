@@ -12,6 +12,7 @@ const config_1 = require("./config");
 const routes_1 = __importDefault(require("./routes"));
 const request_id_middleware_1 = require("./middleware/request-id.middleware");
 const logger_middleware_1 = require("./middleware/logger.middleware");
+const rate_limit_middleware_1 = require("./middleware/rate-limit.middleware");
 const not_found_middleware_1 = require("./middleware/not-found.middleware");
 const error_middleware_1 = require("./middleware/error.middleware");
 function createApp() {
@@ -24,8 +25,8 @@ function createApp() {
     // Custom Request Correlation & Logging
     app.use(request_id_middleware_1.requestIdMiddleware);
     app.use(logger_middleware_1.loggerMiddleware);
-    // Mount API V1 routes
-    app.use(config_1.appConfig.apiVersion, routes_1.default);
+    // Mount API V1 routes with general rate limiter
+    app.use(config_1.appConfig.apiVersion, rate_limit_middleware_1.apiRateLimiter, routes_1.default);
     // 404 Unmapped Route Handler
     app.use(not_found_middleware_1.notFoundMiddleware);
     // Centralized Error Handling Middleware

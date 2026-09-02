@@ -10,7 +10,7 @@ const server = app.listen(appConfig.port, () => {
 });
 
 // Graceful shutdown handling owning server closure and database disconnection
-async function handleShutdown(signal: string): Promise<void> {
+async function handleShutdown(signal: string, exitCode = 0): Promise<void> {
   console.log(`[GBUD API] Received ${signal}. Initiating graceful shutdown...`);
 
   server.close(async () => {
@@ -18,7 +18,7 @@ async function handleShutdown(signal: string): Promise<void> {
     try {
       await prisma.$disconnect();
       console.log('[GBUD API] Database disconnected cleanly. Process exiting.');
-      process.exit(0);
+      process.exit(exitCode);
     } catch (err) {
       console.error('[GBUD API] Error disconnecting database during shutdown:', err);
       process.exit(1);
@@ -32,5 +32,18 @@ async function handleShutdown(signal: string): Promise<void> {
   }, 10000).unref();
 }
 
-process.on('SIGINT', () => handleShutdown('SIGINT'));
-process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+// OS Process Signals
+process.on('SIGINT', () => handleShutdown('SIGINT', 0));
+process.on('SIGTERM', () => handleShutdown('SIGTERM', 0));
+
+// Fatal Runtime Exceptions & Unhandled Rejections
+process.on('uncaughtException', (err: Error) => {
+  console.error(`[${new Date().toISOString()}] [FATAL] Uncaught Exception:`, err.message);
+  console.error(err.stack);
+  handleShutdown('uncaughtException', 1);
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+  console.error(`[${new Date().toISOString()}] [FATAL] Unhandled Promise Rejection:`, reason);
+  handleShutdown('unhandledRejection', 1);
+});

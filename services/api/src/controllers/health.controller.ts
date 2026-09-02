@@ -12,6 +12,18 @@ export class HealthController {
       timestamp: healthStatus.timestamp,
     });
   };
+
+  public checkReadiness = async (_req: Request, res: Response): Promise<void> => {
+    const { isReady, data } = await healthService.getReadinessStatus();
+    const statusCode = isReady ? 200 : 503;
+
+    res.status(statusCode).json({
+      success: isReady,
+      message: isReady ? 'GBUD API and database are ready' : 'Database connection unavailable',
+      data,
+      timestamp: data.timestamp,
+    });
+  };
 }
 
 export const healthController = new HealthController();

@@ -8,6 +8,7 @@ import { formatTimestamp } from '@gbud/utils';
 const router: Router = Router();
 
 router.get('/health', healthController.checkHealth);
+router.get('/health/ready', healthController.checkReadiness);
 
 // Phase 1 test route to verify Zod validation middleware contract (returns 422 VALIDATION_ERROR if invalid)
 router.post(
