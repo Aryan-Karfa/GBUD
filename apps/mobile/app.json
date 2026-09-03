@@ -22,6 +22,11 @@
     "androidNavigationBar": {
       "backgroundColor": "#09090b",
       "barStyle": "light-content"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f079be17-a4f6-4d9b-a070-1b23d34446b7"
+      }
     }
   }
 }
