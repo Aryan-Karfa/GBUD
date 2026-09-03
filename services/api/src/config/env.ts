@@ -20,11 +20,11 @@ export function loadEnv(): Environment {
     ? rawNodeEnv
     : 'development') as Environment['nodeEnv'];
 
-  const rawPort = process.env.API_PORT || '4000';
+  const rawPort = process.env.PORT || process.env.API_PORT || '4000';
   const port = parseInt(rawPort, 10);
 
   if (isNaN(port) || port <= 0 || port > 65535) {
-    throw new Error(`Invalid API_PORT specified in environment: "${rawPort}"`);
+    throw new Error(`Invalid port specified in environment (PORT/API_PORT): "${rawPort}"`);
   }
 
   const jwtAccessSecret =

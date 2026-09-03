@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import express, { Request, Response } from 'express';
 import helmet from 'helmet';
@@ -8,6 +8,7 @@ import { healthService } from '../services/health.service';
 import { prisma } from '../config/prisma';
 import { appConfig } from '../config';
 import { createApp } from '../app';
+import { loadEnv } from '../config/env';
 
 describe('Phase 14 Production Security & Reliability Hardening', () => {
   beforeEach(() => {
@@ -108,6 +109,52 @@ describe('Phase 14 Production Security & Reliability Hardening', () => {
 
       expect(res.headers['x-content-type-options']).toBe('nosniff');
       expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
+    });
+  });
+
+  describe('Port Resolution & Cloud Deployment (Railway)', () => {
+    const originalPort = process.env.PORT;
+    const originalApiPort = process.env.API_PORT;
+
+    beforeEach(() => {
+      delete process.env.PORT;
+      delete process.env.API_PORT;
+    });
+
+    afterAll(() => {
+      if (originalPort !== undefined) process.env.PORT = originalPort;
+      else delete process.env.PORT;
+
+      if (originalApiPort !== undefined) process.env.API_PORT = originalApiPort;
+      else delete process.env.API_PORT;
+    });
+
+    it('prefers process.env.PORT when provided by cloud host (e.g. Railway)', () => {
+      process.env.PORT = '7000';
+      process.env.API_PORT = '4000';
+
+      const env = loadEnv();
+      expect(env.port).toBe(7000);
+    });
+
+    it('falls back to process.env.API_PORT when PORT is unset', () => {
+      process.env.API_PORT = '5050';
+
+      const env = loadEnv();
+      expect(env.port).toBe(5050);
+    });
+
+    it('defaults to port 4000 when neither PORT nor API_PORT is provided', () => {
+      const env = loadEnv();
+      expect(env.port).toBe(4000);
+    });
+
+    it('throws an informative error if an invalid port string or out-of-range port is specified', () => {
+      process.env.PORT = 'not-a-number';
+      expect(() => loadEnv()).toThrow(/Invalid port specified in environment/);
+
+      process.env.PORT = '99999';
+      expect(() => loadEnv()).toThrow(/Invalid port specified in environment/);
     });
   });
 });
