@@ -56,18 +56,21 @@ describe('Phase 14 Mobile Production Configuration Hardening', () => {
   });
 
   describe('EAS Build Profiles (eas.json)', () => {
-    it('defines development, preview (APK), and production (App Bundle) profiles', () => {
+    it('defines development, preview (APK), and production (direct-install APK) profiles', () => {
       const builds = easConfig.build;
       expect(builds).toHaveProperty('development');
       expect(builds).toHaveProperty('preview');
       expect(builds).toHaveProperty('production');
 
-      // Preview builds internal APK for physical device validation
+      // Both preview and production build direct-install APKs
       expect(builds.preview.android.buildType).toBe('apk');
+      expect(builds.production.android.buildType).toBe('apk');
+      expect(builds.production.distribution).toBe('internal');
 
-      // Production builds Google Play App Bundle (.aab)
-      expect(builds.production.android.buildType).toBe('app-bundle');
-      expect(builds.production.distribution).toBe('store');
+      // Production profile uses Railway production API URL
+      expect(builds.production.env.EXPO_PUBLIC_API_URL).toBe(
+        'https://gbud-production.up.railway.app'
+      );
     });
   });
 });
